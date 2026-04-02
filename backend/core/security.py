@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 import jwt
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from core.config import settings
@@ -61,6 +61,7 @@ def decode_token(token: str) -> dict:
 
 
 async def get_current_user(
+    request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(_bearer),
 ) -> dict:
     payload = decode_token(credentials.credentials)
@@ -69,7 +70,9 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token de acceso requerido",
         )
-    return {"user_id": payload["sub"], "roles": payload.get("roles", [])}
+    user = {"user_id": payload["sub"], "roles": payload.get("roles", [])}
+    request.state.user_id = user["user_id"]
+    return user
 
 
 def require_roles(allowed_roles: list[str]) -> Callable:
