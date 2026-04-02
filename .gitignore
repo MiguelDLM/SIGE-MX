@@ -1,6 +1,16 @@
+.env
 .worktrees/
-
 .agents/
 .claude/
 .superpowers/
 skills-lock.json
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+.venv/
+venv/
+*.log
