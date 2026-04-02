@@ -7,7 +7,7 @@ from sqlalchemy.pool import NullPool
 
 # Set env vars before importing app modules
 os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://sige_user:changeme_strong_password@localhost:5432/sige_mx")
-os.environ.setdefault("TEST_DATABASE_URL", "postgresql+asyncpg://sige_user:changeme_strong_password@localhost:5432/sige_mx_test")
+os.environ.setdefault("TEST_DATABASE_URL", "postgresql+asyncpg://sige_user:changeme_strong_password@postgres:5432/sige_mx_test")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 os.environ.setdefault("REDIS_PASSWORD", "changeme_redis_password")
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-testing-only-not-production")
