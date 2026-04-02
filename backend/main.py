@@ -40,3 +40,6 @@ app.include_router(cycles_router)
 
 from modules.students.router import router as students_router
 app.include_router(students_router)
+
+from modules.teachers.router import router as teachers_router
+app.include_router(teachers_router)
