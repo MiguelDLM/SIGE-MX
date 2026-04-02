@@ -28,3 +28,6 @@ async def health_check():
 
 from modules.users.router import router as users_router
 app.include_router(users_router)
+
+from modules.auth.router import router as auth_router
+app.include_router(auth_router)
