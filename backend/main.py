@@ -52,3 +52,6 @@ app.include_router(groups_router)
 
 from modules.attendance.router import router as attendance_router
 app.include_router(attendance_router)
+
+from modules.grades.router import router as grades_router
+app.include_router(grades_router)
