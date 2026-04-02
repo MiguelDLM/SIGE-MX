@@ -35,9 +35,14 @@ async def create_user(data: UserCreate, db: AsyncSession) -> User:
         role_result = await db.execute(select(Role).where(Role.name == role_name))
         role = role_result.scalar_one_or_none()
         if role is None:
-            role = Role(name=role_name)
-            db.add(role)
-            await db.flush()
+            try:
+                role = Role(name=role_name)
+                db.add(role)
+                await db.flush()
+            except IntegrityError:
+                await db.rollback()
+                role_result = await db.execute(select(Role).where(Role.name == role_name))
+                role = role_result.scalar_one()
         db.add(UserRole(user_id=user.id, role_id=role.id))
 
     await db.commit()
