@@ -37,3 +37,6 @@ app.include_router(auth_router)
 
 from modules.academic_cycles.router import router as cycles_router
 app.include_router(cycles_router)
+
+from modules.students.router import router as students_router
+app.include_router(students_router)
