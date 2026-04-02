@@ -1,5 +1,5 @@
 # backend/modules/imports/router.py
-from fastapi import APIRouter, Depends, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,6 +21,8 @@ async def import_students(
     _: dict = Depends(require_roles(_admin)),
 ):
     content = await file.read(MAX_FILE_SIZE + 1)
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=413, detail="El archivo supera el límite de 5 MB")
     result = await service.import_students(content, file.filename or "upload.csv", db)
     return {"data": result.model_dump()}
 
@@ -32,6 +34,8 @@ async def import_teachers(
     _: dict = Depends(require_roles(_admin)),
 ):
     content = await file.read(MAX_FILE_SIZE + 1)
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=413, detail="El archivo supera el límite de 5 MB")
     result = await service.import_teachers(content, file.filename or "upload.csv", db)
     return {"data": result.model_dump()}
 

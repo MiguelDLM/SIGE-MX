@@ -50,11 +50,11 @@ async def import_students(
     importados = 0
     for student in valid_students:
         try:
-            db.add(student)
-            await db.flush()
+            async with db.begin_nested():
+                db.add(student)
+                await db.flush()
             importados += 1
         except IntegrityError:
-            await db.rollback()
             error_details.append(
                 RowError(row=0, field="matricula", message=f"Matrícula '{student.matricula}' ya existe")
             )
@@ -98,11 +98,11 @@ async def import_teachers(
     importados = 0
     for teacher in valid_teachers:
         try:
-            db.add(teacher)
-            await db.flush()
+            async with db.begin_nested():
+                db.add(teacher)
+                await db.flush()
             importados += 1
         except IntegrityError:
-            await db.rollback()
             error_details.append(
                 RowError(row=0, field="numero_empleado", message=f"Número de empleado '{teacher.numero_empleado}' ya existe")
             )
