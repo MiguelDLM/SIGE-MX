@@ -43,3 +43,6 @@ app.include_router(students_router)
 
 from modules.teachers.router import router as teachers_router
 app.include_router(teachers_router)
+
+from modules.subjects.router import router as subjects_router
+app.include_router(subjects_router)
