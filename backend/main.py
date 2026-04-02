@@ -55,3 +55,6 @@ app.include_router(attendance_router)
 
 from modules.grades.router import router as grades_router
 app.include_router(grades_router)
+
+from modules.imports.router import router as imports_router
+app.include_router(imports_router)
