@@ -49,3 +49,6 @@ app.include_router(subjects_router)
 
 from modules.groups.router import router as groups_router
 app.include_router(groups_router)
+
+from modules.attendance.router import router as attendance_router
+app.include_router(attendance_router)
