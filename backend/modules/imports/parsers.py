@@ -8,7 +8,7 @@ import openpyxl
 
 def parse_file(content: bytes, filename: str) -> list[dict[str, Any]]:
     """Parse CSV or XLSX file and return list of row dicts (header = keys)."""
-    if filename.endswith(".xlsx") or filename.endswith(".xls"):
+    if filename.lower().endswith(".xlsx") or filename.lower().endswith(".xls"):
         return _parse_xlsx(content)
     return _parse_csv(content)
 

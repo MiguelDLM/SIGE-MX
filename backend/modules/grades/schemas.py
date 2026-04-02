@@ -10,7 +10,7 @@ from modules.grades.models import EvaluationType
 
 
 class EvaluationCreate(BaseModel):
-    titulo: Optional[str] = None
+    titulo: str
     tipo: Optional[EvaluationType] = None
     subject_id: Optional[uuid.UUID] = None
     group_id: Optional[uuid.UUID] = None
