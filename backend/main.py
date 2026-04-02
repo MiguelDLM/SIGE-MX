@@ -1,5 +1,7 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+
+from core.exceptions import BusinessError, business_error_handler, http_exception_handler
 
 app = FastAPI(
     title="SIGE-MX API",
@@ -14,6 +16,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_exception_handler(BusinessError, business_error_handler)
+app.add_exception_handler(HTTPException, http_exception_handler)
 
 
 @app.get("/health", tags=["health"])
