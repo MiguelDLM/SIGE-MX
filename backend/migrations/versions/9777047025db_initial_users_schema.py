@@ -58,4 +58,5 @@ def downgrade() -> None:
     op.drop_table('user_roles')
     op.drop_table('users')
     op.drop_table('roles')
+    op.execute("DROP TYPE IF EXISTS user_status")
     # ### end Alembic commands ###
