@@ -22,6 +22,7 @@ os.environ.setdefault("MINIO_ROOT_PASSWORD", "changeme_strong_password")
 os.environ.setdefault("MINIO_ENDPOINT", "localhost:9000")
 os.environ.setdefault("APP_ENV", "test")
 
+import models  # noqa: F401 — ensures all tables are in Base.metadata for test DB
 from core.database import Base, get_db
 from main import app
 
