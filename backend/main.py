@@ -24,3 +24,7 @@ app.add_exception_handler(HTTPException, http_exception_handler)
 @app.get("/health", tags=["health"])
 async def health_check():
     return {"status": "ok"}
+
+
+from modules.users.router import router as users_router
+app.include_router(users_router)
