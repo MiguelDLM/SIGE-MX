@@ -1,22 +1,29 @@
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive/hive.dart';
 
 part 'attendance_record.g.dart';
 
-// TODO(task4): generate adapter with build_runner
 @HiveType(typeId: 0)
 class AttendanceRecord extends HiveObject {
   @HiveField(0)
-  late String studentId;
+  final String studentId;
 
   @HiveField(1)
-  late String groupId;
+  final String groupId;
 
   @HiveField(2)
-  late String fecha;
+  final String fecha;
 
   @HiveField(3)
-  late String status; // presente | ausente | justificado
+  String status;
 
   @HiveField(4)
-  late String syncState; // pending | synced
+  String syncState;
+
+  AttendanceRecord({
+    required this.studentId,
+    required this.groupId,
+    required this.fecha,
+    required this.status,
+    this.syncState = 'pending',
+  });
 }

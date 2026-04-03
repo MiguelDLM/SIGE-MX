@@ -16,12 +16,13 @@ class AttendanceRecordAdapter extends TypeAdapter<AttendanceRecord> {
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return AttendanceRecord()
-      ..studentId = fields[0] as String
-      ..groupId = fields[1] as String
-      ..fecha = fields[2] as String
-      ..status = fields[3] as String
-      ..syncState = fields[4] as String;
+    return AttendanceRecord(
+      studentId: fields[0] as String,
+      groupId: fields[1] as String,
+      fecha: fields[2] as String,
+      status: fields[3] as String,
+      syncState: fields[4] as String,
+    );
   }
 
   @override
