@@ -64,32 +64,40 @@ class AppShell extends ConsumerWidget {
           _Tab('/home', 'Inicio', Icons.home_outlined),
           _Tab('/attendance', 'Asistencia', Icons.checklist_outlined),
           _Tab('/grades', 'Calificaciones', Icons.grade_outlined),
+          _Tab('/justifications', 'Justificantes', Icons.assignment_outlined),
+          _Tab('/messages', 'Mensajes', Icons.mail_outlined),
         ];
       case 'padre':
         return [
           _Tab('/home', 'Inicio', Icons.home_outlined),
           _Tab('/attendance', 'Asistencia', Icons.checklist_outlined),
           _Tab('/grades', 'Calificaciones', Icons.grade_outlined),
+          _Tab('/justifications', 'Justificantes', Icons.assignment_outlined),
+          _Tab('/messages', 'Mensajes', Icons.mail_outlined),
         ];
       case 'alumno':
         return [
           _Tab('/home', 'Inicio', Icons.home_outlined),
           _Tab('/attendance', 'Mi Asistencia', Icons.checklist_outlined),
           _Tab('/grades', 'Mis Calificaciones', Icons.grade_outlined),
+          _Tab('/reports', 'Reportes', Icons.picture_as_pdf_outlined),
+          _Tab('/messages', 'Mensajes', Icons.mail_outlined),
         ];
       case 'directivo':
         return [
           _Tab('/home', 'Inicio', Icons.home_outlined),
-          _Tab('/students', 'Alumnos', Icons.people_outlined),
-          _Tab('/groups', 'Grupos', Icons.group_outlined),
+          _Tab('/events', 'Eventos', Icons.event_outlined),
+          _Tab('/justifications', 'Justificantes', Icons.assignment_outlined),
           _Tab('/reports', 'Reportes', Icons.picture_as_pdf_outlined),
+          _Tab('/messages', 'Mensajes', Icons.mail_outlined),
         ];
       case 'control_escolar':
         return [
           _Tab('/home', 'Inicio', Icons.home_outlined),
           _Tab('/students', 'Alumnos', Icons.people_outlined),
+          _Tab('/justifications', 'Justificantes', Icons.assignment_outlined),
           _Tab('/imports', 'Importar', Icons.upload_file_outlined),
-          _Tab('/reports', 'Constancias', Icons.picture_as_pdf_outlined),
+          _Tab('/messages', 'Mensajes', Icons.mail_outlined),
         ];
       default:
         return [_Tab('/home', 'Inicio', Icons.home_outlined)];

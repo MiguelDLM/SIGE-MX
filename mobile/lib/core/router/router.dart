@@ -11,6 +11,12 @@ import '../../features/attendance/take_attendance_screen.dart';
 import '../../features/attendance/view_attendance_screen.dart';
 import '../../features/grades/capture_grades_screen.dart';
 import '../../features/grades/view_grades_screen.dart';
+import '../../features/messaging/inbox_screen.dart';
+import '../../features/messaging/send_message_screen.dart';
+import '../../features/justifications/justification_list_screen.dart';
+import '../../features/justifications/submit_justification_screen.dart';
+import '../../features/events/events_screen.dart';
+import '../../features/reports/reports_screen.dart';
 
 final _routerNotifierProvider =
     ChangeNotifierProvider<_RouterNotifier>((ref) => _RouterNotifier(ref));
@@ -77,16 +83,36 @@ final routerProvider = Provider<GoRouter>((ref) {
                 ViewGradesScreen(studentId: s.pathParameters['studentId']!),
           ),
           GoRoute(
+            path: '/messages',
+            builder: (_, __) => const InboxScreen(),
+          ),
+          GoRoute(
+            path: '/messages/new',
+            builder: (_, __) => const SendMessageScreen(),
+          ),
+          GoRoute(
+            path: '/justifications',
+            builder: (_, __) => const JustificationListScreen(),
+          ),
+          GoRoute(
+            path: '/justifications/new',
+            builder: (_, __) => const SubmitJustificationScreen(),
+          ),
+          GoRoute(
+            path: '/events',
+            builder: (_, __) => const EventsScreen(),
+          ),
+          GoRoute(
+            path: '/reports',
+            builder: (_, __) => const ReportsScreen(),
+          ),
+          GoRoute(
             path: '/students',
             builder: (_, __) => const _ComingSoon(label: 'Alumnos'),
           ),
           GoRoute(
             path: '/groups',
             builder: (_, __) => const _ComingSoon(label: 'Grupos'),
-          ),
-          GoRoute(
-            path: '/reports',
-            builder: (_, __) => const _ComingSoon(label: 'Reportes'),
           ),
           GoRoute(
             path: '/imports',
