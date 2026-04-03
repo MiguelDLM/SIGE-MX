@@ -64,3 +64,6 @@ app.include_router(justifications_router)
 
 from modules.messaging.router import router as messaging_router
 app.include_router(messaging_router)
+
+from modules.events.router import router as events_router
+app.include_router(events_router)
