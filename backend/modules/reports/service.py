@@ -40,7 +40,7 @@ async def _get_active_group(student_id: uuid.UUID, db: AsyncSession) -> tuple[Gr
     return row[0], row[1]
 
 
-async def generate_boleta(student_id: uuid.UUID, db: AsyncSession) -> bytes:
+async def generate_boleta(student_id: uuid.UUID, db: AsyncSession) -> tuple[bytes, str]:
     student = await _get_student_or_404(student_id, db)
     group, cycle = await _get_active_group(student_id, db)
 
@@ -132,10 +132,10 @@ async def generate_boleta(student_id: uuid.UUID, db: AsyncSession) -> bytes:
     pdf.set_font("Helvetica", "I", 8)
     pdf.cell(0, 6, f"Fecha de expedicion: {date.today().strftime('%d/%m/%Y')}", ln=True)
 
-    return bytes(pdf.output())
+    return bytes(pdf.output()), student.matricula
 
 
-async def generate_constancia(student_id: uuid.UUID, db: AsyncSession) -> bytes:
+async def generate_constancia(student_id: uuid.UUID, db: AsyncSession) -> tuple[bytes, str]:
     student = await _get_student_or_404(student_id, db)
     group, cycle = await _get_active_group(student_id, db)
 
@@ -189,4 +189,4 @@ async def generate_constancia(student_id: uuid.UUID, db: AsyncSession) -> bytes:
     pdf.ln(4)
     pdf.cell(0, 6, "Control Escolar", ln=True)
 
-    return bytes(pdf.output())
+    return bytes(pdf.output()), student.matricula

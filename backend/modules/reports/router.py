@@ -20,12 +20,12 @@ async def get_boleta(
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(require_roles(_allowed)),
 ):
-    pdf_bytes = await service.generate_boleta(student_id, db)
-    filename = f"boleta_{student_id}.pdf"
+    pdf_bytes, matricula = await service.generate_boleta(student_id, db)
+    filename = f"boleta_{matricula}.pdf"
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
         media_type="application/pdf",
-        headers={"Content-Disposition": f"inline; filename={filename}"},
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
     )
 
 
@@ -35,10 +35,10 @@ async def get_constancia(
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(require_roles(_allowed)),
 ):
-    pdf_bytes = await service.generate_constancia(student_id, db)
-    filename = f"constancia_{student_id}.pdf"
+    pdf_bytes, matricula = await service.generate_constancia(student_id, db)
+    filename = f"constancia_{matricula}.pdf"
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
         media_type="application/pdf",
-        headers={"Content-Disposition": f"inline; filename={filename}"},
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
     )
