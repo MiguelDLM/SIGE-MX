@@ -146,3 +146,56 @@ async def test_review_without_auth_returns_403(client: AsyncClient, student):
         json={"status": "aprobado"},
     )
     assert response.status_code == 403
+
+
+@pytest_asyncio.fixture
+async def admin_token(db_session):
+    result = await db_session.execute(sqlalchemy.select(Role).where(Role.name == "control_escolar"))
+    role = result.scalar_one_or_none()
+    if not role:
+        role = Role(name="control_escolar")
+        db_session.add(role)
+        await db_session.flush()
+    result = await db_session.execute(sqlalchemy.select(User).where(User.email == "ctrl_just_admin@test.com"))
+    user = result.scalar_one_or_none()
+    if not user:
+        user = User(
+            email="ctrl_just_admin@test.com",
+            password_hash=hash_password("pass"),
+            nombre="Control",
+            status=UserStatus.activo,
+        )
+        db_session.add(user)
+        await db_session.flush()
+        db_session.add(UserRole(user_id=user.id, role_id=role.id))
+        await db_session.commit()
+        await db_session.refresh(user)
+    return create_access_token(str(user.id), ["control_escolar"])
+
+
+@pytest.mark.asyncio
+async def test_list_my_justifications_empty(client: AsyncClient, admin_token):
+    import uuid as _uuid
+    suffix = _uuid.uuid4().hex[:6]
+
+    resp_user = await client.post(
+        "/api/v1/users/",
+        json={
+            "nombre": "Nuevo", "apellido_paterno": "Alumno",
+            "email": f"alumno-jmy-{suffix}@test.mx", "password": "pass123",
+            "roles": ["alumno"]
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    resp_login = await client.post(
+        "/api/v1/auth/login",
+        json={"email": f"alumno-jmy-{suffix}@test.mx", "password": "pass123"},
+    )
+    token = resp_login.json()["data"]["access_token"]
+
+    resp = await client.get(
+        "/api/v1/justifications/my",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["data"] == []

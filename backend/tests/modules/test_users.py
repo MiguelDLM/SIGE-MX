@@ -107,3 +107,47 @@ async def test_create_duplicate_email_returns_409(
         headers={"Authorization": f"Bearer {directivo_token}"},
     )
     assert response.status_code == 409
+
+
+@pytest_asyncio.fixture
+async def admin_token(db_session):
+    result = await db_session.execute(select(Role).where(Role.name == "directivo"))
+    role = result.scalar_one_or_none()
+    if role is None:
+        role = Role(name="directivo")
+        db_session.add(role)
+        await db_session.flush()
+    result = await db_session.execute(select(User).where(User.email == "admin_list@test.com"))
+    user = result.scalar_one_or_none()
+    if user is None:
+        user = User(
+            email="admin_list@test.com",
+            password_hash=hash_password("pass"),
+            nombre="Admin",
+            apellido_paterno="List",
+            status=UserStatus.activo,
+        )
+        db_session.add(user)
+        await db_session.flush()
+        db_session.add(UserRole(user_id=user.id, role_id=role.id))
+        await db_session.commit()
+        await db_session.refresh(user)
+    return create_access_token(str(user.id), ["directivo"])
+
+
+@pytest.mark.asyncio
+async def test_list_users_by_role(client: AsyncClient, admin_token):
+    resp = await client.get(
+        "/api/v1/users/?role=directivo",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    for u in data:
+        assert "directivo" in u["roles"]
+
+
+@pytest.mark.asyncio
+async def test_list_users_no_auth(client: AsyncClient):
+    resp = await client.get("/api/v1/users/")
+    assert resp.status_code in (401, 403)

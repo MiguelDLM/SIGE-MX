@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
-from core.security import require_roles
+from core.security import get_current_user, require_roles
 from modules.students import service
 from modules.students.schemas import StudentCreate, StudentResponse, StudentUpdate
 
@@ -40,6 +40,15 @@ async def list_students(
         "size": size,
         "pages": pages,
     }
+
+
+@router.get("/my")
+async def list_my_students(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    students = await service.list_my_students(uuid.UUID(current_user["user_id"]), db)
+    return {"data": [StudentResponse.model_validate(s) for s in students]}
 
 
 @router.get("/{student_id}")

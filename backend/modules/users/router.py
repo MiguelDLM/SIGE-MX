@@ -1,10 +1,11 @@
 import uuid
+from typing import Optional
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
-from core.security import require_roles
+from core.security import get_current_user, require_roles
 from modules.users import service
 from modules.users.schemas import UserCreate, UserResponse
 
@@ -37,6 +38,21 @@ async def create_user(
     user = await service.create_user(data, db)
     roles = await service.get_user_roles(user.id, db)
     return {"data": _user_to_response(user, roles)}
+
+
+@router.get("/")
+async def list_users(
+    role: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(get_current_user),
+):
+    pairs = await service.list_users(db, role)
+    return {
+        "data": [
+            _user_to_response(user, roles)
+            for user, roles in pairs
+        ]
+    }
 
 
 @router.get("/{user_id}")

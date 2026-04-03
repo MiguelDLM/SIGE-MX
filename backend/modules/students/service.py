@@ -47,6 +47,32 @@ async def list_students(
     return list(result.scalars()), total
 
 
+async def list_my_students(
+    user_id: uuid.UUID, db: AsyncSession
+) -> list[Student]:
+    from modules.students.models import Parent, StudentParent
+    results: list[Student] = []
+
+    direct = await db.execute(
+        select(Student).where(Student.user_id == user_id)
+    )
+    results.extend(direct.scalars().all())
+
+    parent_result = await db.execute(
+        select(Parent).where(Parent.user_id == user_id)
+    )
+    parent = parent_result.scalar_one_or_none()
+    if parent:
+        linked = await db.execute(
+            select(Student)
+            .join(StudentParent, StudentParent.student_id == Student.id)
+            .where(StudentParent.parent_id == parent.id)
+        )
+        results.extend(linked.scalars().all())
+
+    return results
+
+
 async def update_student(
     student_id: uuid.UUID, data: StudentUpdate, db: AsyncSession
 ) -> Student:

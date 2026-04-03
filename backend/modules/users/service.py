@@ -1,4 +1,5 @@
 import uuid
+from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -65,3 +66,27 @@ async def get_user_roles(user_id: uuid.UUID, db: AsyncSession) -> list[str]:
         .where(UserRole.user_id == user_id)
     )
     return list(result.scalars())
+
+
+async def list_users(
+    db: AsyncSession,
+    role: Optional[str] = None,
+) -> list[tuple[User, list[str]]]:
+    if role:
+        stmt = (
+            select(User)
+            .join(UserRole, UserRole.user_id == User.id)
+            .join(Role, Role.id == UserRole.role_id)
+            .where(Role.name == role)
+            .order_by(User.apellido_paterno, User.nombre)
+        )
+    else:
+        stmt = select(User).order_by(User.apellido_paterno, User.nombre)
+
+    result = await db.execute(stmt)
+    users = list(result.scalars().unique())
+    out = []
+    for u in users:
+        roles = await get_user_roles(u.id, db)
+        out.append((u, roles))
+    return out

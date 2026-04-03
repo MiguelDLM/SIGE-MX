@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, s
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
-from core.security import require_roles
+from core.security import get_current_user, require_roles
 from modules.justifications import service
 from modules.justifications.schemas import JustificationResponse, JustificationReview
 
@@ -44,6 +44,17 @@ async def create_justification(
         db=db,
     )
     return {"data": JustificationResponse.model_validate(record)}
+
+
+@router.get("/my")
+async def list_my_justifications(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    records = await service.list_my_justifications(
+        uuid.UUID(current_user["user_id"]), db
+    )
+    return {"data": [JustificationResponse.model_validate(r) for r in records]}
 
 
 @router.get("/")

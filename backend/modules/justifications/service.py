@@ -64,3 +64,38 @@ async def review_justification(
     await db.commit()
     await db.refresh(record)
     return record
+
+
+async def list_my_justifications(
+    user_id: uuid.UUID, db: AsyncSession
+) -> list[Justification]:
+    from modules.students.models import Parent, Student, StudentParent
+
+    student_ids: list[uuid.UUID] = []
+
+    direct = await db.execute(
+        select(Student.id).where(Student.user_id == user_id)
+    )
+    student_ids.extend(direct.scalars().all())
+
+    parent_result = await db.execute(
+        select(Parent).where(Parent.user_id == user_id)
+    )
+    parent = parent_result.scalar_one_or_none()
+    if parent:
+        linked = await db.execute(
+            select(StudentParent.student_id).where(
+                StudentParent.parent_id == parent.id
+            )
+        )
+        student_ids.extend(linked.scalars().all())
+
+    if not student_ids:
+        return []
+
+    result = await db.execute(
+        select(Justification)
+        .where(Justification.student_id.in_(student_ids))
+        .order_by(Justification.created_at.desc())
+    )
+    return list(result.scalars())
