@@ -11,6 +11,7 @@ void main() async {
   await Hive.initFlutter();
   Hive.registerAdapter(AttendanceRecordAdapter());
   await Hive.openBox<AttendanceRecord>('attendance_pending');
+  await Hive.openBox<String>('settings');
   runApp(const ProviderScope(child: SigeApp()));
 }
 

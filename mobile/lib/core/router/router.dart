@@ -4,9 +4,12 @@ import 'package:go_router/go_router.dart';
 
 import '../auth/auth_notifier.dart';
 import '../auth/auth_state.dart';
+import '../config/server_config.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/dashboard/app_shell.dart';
 import '../../features/dashboard/home_screen.dart';
+import '../../features/setup/server_setup_screen.dart';
+import '../../features/settings/settings_screen.dart';
 import '../../features/attendance/take_attendance_screen.dart';
 import '../../features/attendance/view_attendance_screen.dart';
 import '../../features/grades/capture_grades_screen.dart';
@@ -27,15 +30,25 @@ class _RouterNotifier extends ChangeNotifier {
     _ref.listen<AsyncValue<AuthState>>(authNotifierProvider, (_, __) {
       notifyListeners();
     });
+    _ref.listen<String?>(serverUrlProvider, (_, __) {
+      notifyListeners();
+    });
   }
 
   String? redirect(BuildContext context, GoRouterState state) {
+    final serverUrl = _ref.read(serverUrlProvider);
+    if (serverUrl == null || serverUrl.isEmpty) {
+      return state.matchedLocation == '/setup' ? null : '/setup';
+    }
+
     final authAsync = _ref.read(authNotifierProvider);
     return authAsync.when(
       loading: () => null,
       error: (_, __) => '/login',
       data: (auth) {
-        final isLogin = state.matchedLocation == '/login';
+        final loc = state.matchedLocation;
+        if (loc == '/setup') return '/login';
+        final isLogin = loc == '/login';
         if (auth is AuthUnauthenticated) return isLogin ? null : '/login';
         if (auth is AuthAuthenticated && isLogin) return '/home';
         return null;
@@ -51,6 +64,10 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: notifier.redirect,
     initialLocation: '/login',
     routes: [
+      GoRoute(
+        path: '/setup',
+        builder: (_, __) => const ServerSetupScreen(),
+      ),
       GoRoute(
         path: '/login',
         builder: (_, __) => const LoginScreen(),
@@ -117,6 +134,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/imports',
             builder: (_, __) => const _ComingSoon(label: 'Importar'),
+          ),
+          GoRoute(
+            path: '/settings',
+            builder: (_, __) => const SettingsScreen(),
           ),
         ],
       ),

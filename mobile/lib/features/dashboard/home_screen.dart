@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/auth/auth_notifier.dart';
 import '../../core/auth/auth_state.dart';
@@ -21,9 +22,9 @@ class HomeScreen extends ConsumerWidget {
             title: const Text('SIGE-MX'),
             actions: [
               IconButton(
-                icon: const Icon(Icons.logout),
-                onPressed: () =>
-                    ref.read(authNotifierProvider.notifier).logout(),
+                icon: const Icon(Icons.settings_outlined),
+                tooltip: 'Configuración',
+                onPressed: () => context.push('/settings'),
               ),
             ],
           ),
