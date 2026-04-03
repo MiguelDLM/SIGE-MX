@@ -67,3 +67,6 @@ app.include_router(messaging_router)
 
 from modules.events.router import router as events_router
 app.include_router(events_router)
+
+from modules.reports.router import router as reports_router
+app.include_router(reports_router)
