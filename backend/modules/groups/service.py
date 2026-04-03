@@ -30,6 +30,32 @@ async def list_groups(db: AsyncSession) -> list[Group]:
     return list(result.scalars())
 
 
+async def list_groups_by_teacher(
+    teacher_id: uuid.UUID, db: AsyncSession
+) -> list[Group]:
+    result = await db.execute(
+        select(Group)
+        .join(GroupTeacher, GroupTeacher.group_id == Group.id)
+        .where(GroupTeacher.teacher_id == teacher_id)
+        .order_by(Group.grado, Group.nombre)
+    )
+    return list(result.scalars())
+
+
+async def list_students_by_group(
+    group_id: uuid.UUID, db: AsyncSession
+) -> list:
+    from modules.students.models import Student
+    await get_group_by_id(group_id, db)
+    result = await db.execute(
+        select(Student)
+        .join(GroupStudent, GroupStudent.student_id == Student.id)
+        .where(GroupStudent.group_id == group_id)
+        .order_by(Student.apellido_paterno, Student.nombre)
+    )
+    return list(result.scalars())
+
+
 async def update_group(
     group_id: uuid.UUID, data: GroupUpdate, db: AsyncSession
 ) -> Group:

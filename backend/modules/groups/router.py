@@ -1,7 +1,8 @@
 # backend/modules/groups/router.py
 import uuid
+from typing import Optional
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
@@ -31,10 +32,14 @@ async def create_group(
 
 @router.get("/")
 async def list_groups(
+    teacher_id: Optional[uuid.UUID] = Query(None),
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(require_roles(_admin + ["docente"])),
 ):
-    groups = await service.list_groups(db)
+    if teacher_id:
+        groups = await service.list_groups_by_teacher(teacher_id, db)
+    else:
+        groups = await service.list_groups(db)
     return {"data": [GroupResponse.model_validate(g) for g in groups]}
 
 
@@ -57,6 +62,17 @@ async def update_group(
 ):
     group = await service.update_group(group_id, data, db)
     return {"data": GroupResponse.model_validate(group)}
+
+
+@router.get("/{group_id}/students")
+async def list_group_students(
+    group_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_roles(_admin + ["docente"])),
+):
+    from modules.students.schemas import StudentResponse
+    students = await service.list_students_by_group(group_id, db)
+    return {"data": [StudentResponse.model_validate(s) for s in students]}
 
 
 @router.post("/{group_id}/students")
