@@ -12,7 +12,7 @@ from modules.attendance.schemas import AttendanceCreate, AttendanceResponse, Att
 
 router = APIRouter(prefix="/api/v1/attendance", tags=["attendance"])
 _write = ["docente", "control_escolar", "directivo"]
-_read = ["docente", "control_escolar", "directivo"]
+_read = ["docente", "control_escolar", "directivo", "padre", "alumno"]
 _admin_read = ["control_escolar", "directivo"]
 
 
