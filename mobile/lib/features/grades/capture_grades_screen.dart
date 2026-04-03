@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../shared/models/evaluation.dart';
-import '../../shared/models/student.dart';
 import '../../shared/widgets/loading_indicator.dart';
 import '../../shared/widgets/error_view.dart';
 import '../../core/api/api_client.dart';
