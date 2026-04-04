@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../core/api/api_client.dart';
+import '../../core/auth/auth_notifier.dart';
+import '../../core/auth/auth_state.dart';
 import '../../shared/models/event.dart';
 import '../../shared/widgets/loading_indicator.dart';
 import '../../shared/widgets/error_view.dart';
@@ -12,8 +16,19 @@ class EventsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final eventsAsync = ref.watch(eventsProvider);
+    final auth = ref.watch(authNotifierProvider).valueOrNull;
+    final isAdmin = auth is AuthAuthenticated &&
+        (auth.primaryRole == 'directivo' ||
+            auth.primaryRole == 'control_escolar');
+
     return Scaffold(
       appBar: AppBar(title: const Text('Eventos')),
+      floatingActionButton: isAdmin
+          ? FloatingActionButton(
+              onPressed: () => context.push('/events/new'),
+              child: const Icon(Icons.add),
+            )
+          : null,
       body: eventsAsync.when(
         loading: () => const LoadingIndicator(),
         error: (e, _) => ErrorView(
@@ -28,17 +43,69 @@ class EventsScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(8),
             itemCount: events.length,
             separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (_, i) => _EventCard(event: events[i]),
+            itemBuilder: (_, i) => _EventCard(
+              event: events[i],
+              isAdmin: isAdmin,
+              onEdit: () =>
+                  context.push('/events/${events[i].id}/edit', extra: events[i]),
+              onDelete: () => _deleteEvent(context, ref, events[i]),
+            ),
           );
         },
       ),
     );
   }
+
+  Future<void> _deleteEvent(
+    BuildContext context,
+    WidgetRef ref,
+    Event event,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Eliminar evento'),
+        content: Text('¿Eliminar "${event.titulo}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && context.mounted) {
+      try {
+        final dio = ref.read(apiClientProvider);
+        await dio.delete('/api/v1/events/${event.id}');
+        ref.invalidate(eventsProvider);
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text('Error: $e')));
+        }
+      }
+    }
+  }
 }
 
 class _EventCard extends StatelessWidget {
   final Event event;
-  const _EventCard({required this.event});
+  final bool isAdmin;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  const _EventCard({
+    required this.event,
+    required this.isAdmin,
+    required this.onEdit,
+    required this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -73,6 +140,27 @@ class _EventCard extends StatelessWidget {
                   labelStyle:
                       TextStyle(color: _tipoColor(event.tipo)),
                 ),
+                if (isAdmin) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton.icon(
+                        onPressed: onEdit,
+                        icon: const Icon(Icons.edit_outlined, size: 18),
+                        label: const Text('Editar'),
+                      ),
+                      const SizedBox(width: 8),
+                      TextButton.icon(
+                        onPressed: onDelete,
+                        icon: const Icon(Icons.delete_outline,
+                            size: 18, color: Colors.red),
+                        label: const Text('Eliminar',
+                            style: TextStyle(color: Colors.red)),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),

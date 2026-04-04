@@ -20,6 +20,12 @@ import '../../features/justifications/justification_list_screen.dart';
 import '../../features/justifications/submit_justification_screen.dart';
 import '../../features/events/events_screen.dart';
 import '../../features/reports/reports_screen.dart';
+import '../../features/admin/school_config_screen.dart';
+import '../../features/admin/cycles_screen.dart';
+import '../../features/admin/users_admin_screen.dart';
+import '../../features/admin/user_form_screen.dart';
+import '../../features/events/event_form_screen.dart';
+import '../../shared/models/event.dart';
 
 final _routerNotifierProvider =
     ChangeNotifierProvider<_RouterNotifier>((ref) => _RouterNotifier(ref));
@@ -120,6 +126,15 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, __) => const EventsScreen(),
           ),
           GoRoute(
+            path: '/events/new',
+            builder: (_, __) => const EventFormScreen(),
+          ),
+          GoRoute(
+            path: '/events/:id/edit',
+            builder: (_, state) =>
+                EventFormScreen(existing: state.extra as Event?),
+          ),
+          GoRoute(
             path: '/reports',
             builder: (_, __) => const ReportsScreen(),
           ),
@@ -138,6 +153,22 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/settings',
             builder: (_, __) => const SettingsScreen(),
+          ),
+          GoRoute(
+            path: '/admin/config',
+            builder: (_, __) => const SchoolConfigScreen(),
+          ),
+          GoRoute(
+            path: '/admin/cycles',
+            builder: (_, __) => const CyclesScreen(),
+          ),
+          GoRoute(
+            path: '/admin/users',
+            builder: (_, __) => const UsersAdminScreen(),
+          ),
+          GoRoute(
+            path: '/admin/users/new',
+            builder: (_, __) => const UserFormScreen(),
           ),
         ],
       ),

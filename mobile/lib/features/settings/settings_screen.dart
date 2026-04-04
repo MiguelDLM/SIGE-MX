@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/auth/auth_notifier.dart';
 import '../../core/auth/auth_state.dart';
+import 'package:go_router/go_router.dart';
+
 import '../../core/config/server_config.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -127,28 +129,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               title: const Text('Información del plantel'),
               subtitle: const Text('Nombre, CCT, turno, dirección'),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () => _showComingSoon(context, 'Información del plantel'),
+              onTap: () => context.push('/admin/config'),
             ),
             ListTile(
               leading: const Icon(Icons.calendar_month_outlined),
               title: const Text('Ciclo escolar activo'),
               subtitle: const Text('Gestionar periodos académicos'),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () => _showComingSoon(context, 'Ciclo escolar'),
+              onTap: () => context.push('/admin/cycles'),
             ),
             ListTile(
               leading: const Icon(Icons.manage_accounts_outlined),
               title: const Text('Gestión de usuarios'),
               subtitle: const Text('Crear y administrar cuentas'),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () => _showComingSoon(context, 'Gestión de usuarios'),
+              onTap: () => context.push('/admin/users'),
             ),
             ListTile(
               leading: const Icon(Icons.event_note_outlined),
               title: const Text('Gestión de eventos'),
               subtitle: const Text('Crear y editar eventos del plantel'),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () => _showComingSoon(context, 'Eventos'),
+              onTap: () => context.push('/events'),
             ),
           ],
 
@@ -166,11 +168,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  void _showComingSoon(BuildContext context, String label) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$label — próximamente')),
-    );
-  }
 }
 
 class _SectionHeader extends StatelessWidget {
