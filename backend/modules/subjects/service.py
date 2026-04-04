@@ -39,3 +39,11 @@ async def update_subject(
     await db.commit()
     await db.refresh(subject)
     return subject
+
+
+async def deactivate_subject(subject_id: uuid.UUID, db: AsyncSession) -> Subject:
+    subject = await get_subject_by_id(subject_id, db)
+    subject.activo = False
+    await db.commit()
+    await db.refresh(subject)
+    return subject

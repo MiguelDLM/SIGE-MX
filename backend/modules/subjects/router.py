@@ -11,7 +11,7 @@ from modules.subjects.schemas import SubjectCreate, SubjectResponse, SubjectUpda
 
 router = APIRouter(prefix="/api/v1/subjects", tags=["subjects"])
 _admin = ["directivo", "control_escolar"]
-_read = ["directivo", "control_escolar", "docente"]
+_read = ["directivo", "control_escolar", "docente", "alumno"]
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -21,7 +21,7 @@ async def create_subject(
     _: dict = Depends(require_roles(_admin)),
 ):
     subject = await service.create_subject(data, db)
-    return {"data": SubjectResponse.model_validate(subject)}
+    return {"data": SubjectResponse.model_validate(subject).model_dump(mode="json")}
 
 
 @router.get("/")
@@ -30,7 +30,7 @@ async def list_subjects(
     _: dict = Depends(require_roles(_read)),
 ):
     subjects = await service.list_subjects(db)
-    return {"data": [SubjectResponse.model_validate(s) for s in subjects]}
+    return {"data": [SubjectResponse.model_validate(s).model_dump(mode="json") for s in subjects]}
 
 
 @router.get("/{subject_id}")
@@ -40,7 +40,7 @@ async def get_subject(
     _: dict = Depends(require_roles(_read)),
 ):
     subject = await service.get_subject_by_id(subject_id, db)
-    return {"data": SubjectResponse.model_validate(subject)}
+    return {"data": SubjectResponse.model_validate(subject).model_dump(mode="json")}
 
 
 @router.patch("/{subject_id}")
@@ -51,4 +51,14 @@ async def update_subject(
     _: dict = Depends(require_roles(_admin)),
 ):
     subject = await service.update_subject(subject_id, data, db)
-    return {"data": SubjectResponse.model_validate(subject)}
+    return {"data": SubjectResponse.model_validate(subject).model_dump(mode="json")}
+
+
+@router.delete("/{subject_id}", status_code=status.HTTP_200_OK)
+async def deactivate_subject(
+    subject_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_roles(_admin)),
+):
+    subject = await service.deactivate_subject(subject_id, db)
+    return {"data": SubjectResponse.model_validate(subject).model_dump(mode="json")}

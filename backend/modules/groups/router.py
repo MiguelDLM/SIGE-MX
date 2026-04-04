@@ -2,7 +2,7 @@
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, status  # noqa: F401
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
@@ -15,6 +15,7 @@ from modules.groups.schemas import (
     GroupResponse,
     GroupUpdate,
 )
+
 
 router = APIRouter(prefix="/api/v1/groups", tags=["groups"])
 _admin = ["directivo", "control_escolar"]
@@ -95,3 +96,24 @@ async def assign_teacher(
 ):
     result = await service.assign_teacher(group_id, data, db)
     return {"data": result}
+
+
+@router.delete("/{group_id}/students/{student_id}", status_code=status.HTTP_200_OK)
+async def remove_student(
+    group_id: uuid.UUID,
+    student_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_roles(_admin)),
+):
+    result = await service.remove_student(group_id, student_id, db)
+    return {"data": result}
+
+
+@router.delete("/{group_id}", status_code=status.HTTP_200_OK)
+async def deactivate_group(
+    group_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_roles(_admin)),
+):
+    group = await service.deactivate_group(group_id, db)
+    return {"data": GroupResponse.model_validate(group).model_dump(mode="json")}

@@ -22,5 +22,6 @@ class SubjectResponse(BaseModel):
     nombre: Optional[str] = None
     clave: Optional[str] = None
     horas_semana: Optional[int] = None
+    activo: bool = True
 
     model_config = {"from_attributes": True}

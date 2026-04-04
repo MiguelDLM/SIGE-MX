@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -17,6 +18,8 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late TextEditingController _urlController;
   bool _editingUrl = false;
+  bool _testingUrl = false;
+  String? _urlError;
 
   @override
   void initState() {
@@ -32,13 +35,38 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _saveUrl() async {
-    final url = _urlController.text.trim();
-    if (url.isEmpty) return;
-    await ref.read(serverUrlProvider.notifier).setUrl(url);
-    setState(() => _editingUrl = false);
-    if (mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('URL actualizada')));
+    final raw = _urlController.text.trim();
+    if (raw.isEmpty) return;
+    final url = raw.endsWith('/') ? raw.substring(0, raw.length - 1) : raw;
+
+    setState(() {
+      _testingUrl = true;
+      _urlError = null;
+    });
+
+    try {
+      final dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 8)));
+      await dio.get('$url/health');
+      await ref.read(serverUrlProvider.notifier).setUrl(url);
+      setState(() {
+        _editingUrl = false;
+        _urlError = null;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('URL actualizada')));
+      }
+    } on DioException catch (e) {
+      setState(() {
+        _urlError = (e.type == DioExceptionType.connectionTimeout ||
+                e.type == DioExceptionType.receiveTimeout)
+            ? 'Tiempo de espera agotado. Verifica la URL y que el servidor esté activo.'
+            : 'No se pudo conectar al servidor: ${e.message}';
+      });
+    } catch (e) {
+      setState(() => _urlError = 'Error inesperado: $e');
+    } finally {
+      if (mounted) setState(() => _testingUrl = false);
     }
   }
 
@@ -85,27 +113,50 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             subtitle: _editingUrl
                 ? Padding(
                     padding: const EdgeInsets.only(top: 8, bottom: 4),
-                    child: Row(children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _urlController,
-                          keyboardType: TextInputType.url,
-                          autocorrect: false,
-                          decoration: const InputDecoration(
-                              border: OutlineInputBorder(), isDense: true),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      FilledButton(
-                          onPressed: _saveUrl, child: const Text('Guardar')),
-                    ]),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _urlController,
+                              keyboardType: TextInputType.url,
+                              autocorrect: false,
+                              enabled: !_testingUrl,
+                              decoration: InputDecoration(
+                                border: const OutlineInputBorder(),
+                                isDense: true,
+                                errorText: _urlError,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          FilledButton(
+                            onPressed: _testingUrl ? null : _saveUrl,
+                            child: _testingUrl
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2, color: Colors.white),
+                                  )
+                                : const Text('Guardar'),
+                          ),
+                        ]),
+                      ],
+                    ),
                   )
                 : Text(serverUrl ?? '—',
                     style: const TextStyle(fontFamily: 'monospace')),
             trailing: _editingUrl
                 ? IconButton(
                     icon: const Icon(Icons.close),
-                    onPressed: () => setState(() => _editingUrl = false),
+                    onPressed: _testingUrl
+                        ? null
+                        : () => setState(() {
+                              _editingUrl = false;
+                              _urlError = null;
+                            }),
                   )
                 : IconButton(
                     icon: const Icon(Icons.edit_outlined),
@@ -146,6 +197,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onTap: () => context.push('/admin/users'),
             ),
             ListTile(
+              leading: const Icon(Icons.book_outlined),
+              title: const Text('Materias'),
+              subtitle: const Text('Gestionar materias del plantel'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push('/admin/materias'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.groups_outlined),
+              title: const Text('Grupos y horarios'),
+              subtitle: const Text('Crear grupos, asignar alumnos y horarios'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push('/admin/grupos'),
+            ),
+            ListTile(
               leading: const Icon(Icons.event_note_outlined),
               title: const Text('Gestión de eventos'),
               subtitle: const Text('Crear y editar eventos del plantel'),
@@ -153,6 +218,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onTap: () => context.push('/events'),
             ),
           ],
+
+          // ── Horario personal ──────────────────────────────────────
+          const Divider(),
+          const _SectionHeader('Funciones'),
+          ListTile(
+            leading: const Icon(Icons.schedule_outlined),
+            title: const Text('Mi horario'),
+            subtitle: const Text('Ver horario de clases (funciona sin conexión)'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/mi-horario'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.workspace_premium_outlined),
+            title: const Text('Mis constancias'),
+            subtitle: const Text('Constancias de participación en eventos'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/mis-constancias'),
+          ),
 
           // ── Sesión ────────────────────────────────────────────────
           const Divider(),

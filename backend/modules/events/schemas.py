@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel
 
@@ -24,7 +24,30 @@ class EventUpdate(BaseModel):
 
 
 class EventParticipantsAdd(BaseModel):
+    """Legacy: add individual users by id list."""
     user_ids: list[uuid.UUID]
+
+
+class EventParticipantRuleAdd(BaseModel):
+    """Flexible: add a rule-based participant entry."""
+    tipo: Literal["individual", "grupo", "materia", "rol"]
+    user_id: Optional[uuid.UUID] = None
+    group_id: Optional[uuid.UUID] = None
+    subject_id: Optional[uuid.UUID] = None
+    rol: Optional[str] = None
+
+
+class EventParticipantResponse(BaseModel):
+    id: uuid.UUID
+    event_id: uuid.UUID
+    tipo: str
+    user_id: Optional[uuid.UUID] = None
+    group_id: Optional[uuid.UUID] = None
+    subject_id: Optional[uuid.UUID] = None
+    rol: Optional[str] = None
+    label: Optional[str] = None
+
+    model_config = {"from_attributes": True}
 
 
 class EventResponse(BaseModel):

@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/api_client.dart';
@@ -34,6 +35,14 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
         refresh: data['refresh_token'] as String,
       );
       return _parseToken(data['access_token'] as String);
+    } on DioException catch (e) {
+      // Solo borrar tokens si el servidor rechaza explícitamente (401 = token inválido)
+      // En errores de red, mantener los tokens para que la sesión persista offline
+      if (e.response?.statusCode == 401) {
+        await storage.clearTokens();
+        return const AuthUnauthenticated();
+      }
+      return _parseToken(accessToken);
     } catch (_) {
       await storage.clearTokens();
       return const AuthUnauthenticated();

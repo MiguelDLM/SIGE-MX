@@ -1,7 +1,7 @@
 # backend/modules/groups/models.py
 import uuid
 
-from sqlalchemy import ForeignKey, Integer, String
+from sqlalchemy import Boolean, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -16,10 +16,13 @@ class Group(Base):
     )
     nombre: Mapped[str | None] = mapped_column(String, nullable=True)
     grado: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    seccion: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    nivel: Mapped[str | None] = mapped_column(String(40), nullable=True)
     turno: Mapped[str | None] = mapped_column(String, nullable=True)
     ciclo_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("academic_cycles.id"), nullable=True
     )
+    activo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
 
 class GroupStudent(Base):

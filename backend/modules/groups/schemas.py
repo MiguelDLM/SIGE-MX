@@ -8,6 +8,8 @@ from pydantic import BaseModel
 class GroupCreate(BaseModel):
     nombre: Optional[str] = None
     grado: Optional[int] = None
+    seccion: Optional[str] = None
+    nivel: Optional[str] = None
     turno: Optional[str] = None
     ciclo_id: Optional[uuid.UUID] = None
 
@@ -15,16 +17,22 @@ class GroupCreate(BaseModel):
 class GroupUpdate(BaseModel):
     nombre: Optional[str] = None
     grado: Optional[int] = None
+    seccion: Optional[str] = None
+    nivel: Optional[str] = None
     turno: Optional[str] = None
     ciclo_id: Optional[uuid.UUID] = None
+    activo: Optional[bool] = None
 
 
 class GroupResponse(BaseModel):
     id: uuid.UUID
     nombre: Optional[str] = None
     grado: Optional[int] = None
+    seccion: Optional[str] = None
+    nivel: Optional[str] = None
     turno: Optional[str] = None
     ciclo_id: Optional[uuid.UUID] = None
+    activo: bool = True
 
     model_config = {"from_attributes": True}
 

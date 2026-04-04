@@ -31,7 +31,7 @@ async def get_inbox(
     current_user: dict = Depends(get_current_user),
 ):
     messages = await service.get_inbox(uuid.UUID(current_user["user_id"]), db)
-    return {"data": messages}
+    return {"data": [InboxMessageResponse.model_validate(m).model_dump(mode="json") for m in messages]}
 
 
 @router.get("/sent")

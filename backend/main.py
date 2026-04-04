@@ -73,3 +73,9 @@ app.include_router(reports_router)
 
 from modules.school_config.router import router as school_config_router
 app.include_router(school_config_router)
+
+from modules.horarios.router import router as horarios_router
+app.include_router(horarios_router)
+
+from modules.constancias.router import router as constancias_router
+app.include_router(constancias_router)

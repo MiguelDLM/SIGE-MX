@@ -1,7 +1,7 @@
 # backend/modules/subjects/models.py
 import uuid
 
-from sqlalchemy import Integer, String
+from sqlalchemy import Boolean, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -17,3 +17,4 @@ class Subject(Base):
     nombre: Mapped[str | None] = mapped_column(String, nullable=True)
     clave: Mapped[str | None] = mapped_column(String, nullable=True)
     horas_semana: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    activo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

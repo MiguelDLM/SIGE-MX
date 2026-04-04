@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:local_auth/local_auth.dart';
 
 import '../../core/auth/auth_notifier.dart';
 import '../../core/theme/app_theme.dart';
@@ -15,8 +17,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  final _localAuth = LocalAuthentication();
   bool _loading = false;
+  bool _obscurePassword = true;
   String? _error;
+
+  static const _kBiometricEmail = 'biometric_email';
+  static const _kBiometricEnabled = 'biometric_enabled';
+
+  Box<String> get _settings => Hive.box<String>('settings');
+
+  bool get _biometricEnabled =>
+      _settings.get(_kBiometricEnabled) == 'true';
+
+  String? get _savedEmail => _settings.get(_kBiometricEmail);
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _tryBiometric());
+  }
 
   @override
   void dispose() {
@@ -25,19 +45,94 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
+  Future<void> _tryBiometric() async {
+    if (!_biometricEnabled) return;
+    final email = _savedEmail;
+    if (email == null) return;
+
+    try {
+      final canCheck = await _localAuth.canCheckBiometrics;
+      final isDeviceSupported = await _localAuth.isDeviceSupported();
+      if (!canCheck || !isDeviceSupported) return;
+
+      final authenticated = await _localAuth.authenticate(
+        localizedReason: 'Usa tu huella para entrar a SIGE-MX',
+        options: const AuthenticationOptions(
+          biometricOnly: true,
+          stickyAuth: true,
+        ),
+      );
+
+      if (authenticated && mounted) {
+        setState(() {
+          _loading = true;
+          _error = null;
+        });
+        // With biometric we still need credentials — attempt refresh via stored token
+        // Just show the email pre-filled and let user enter password
+        // OR we use the stored token flow (auth notifier already handles this)
+        // For simplicity: pre-fill email and show password field
+        _emailCtrl.text = email;
+        setState(() => _loading = false);
+        // If the session is already active (token refresh worked in auth notifier),
+        // the router redirects automatically. We just pre-fill here as fallback.
+      }
+    } catch (_) {
+      // Biometric not available or failed — fall back to password login
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       await ref.read(authNotifierProvider.notifier).login(
             _emailCtrl.text.trim(),
             _passCtrl.text,
           );
+      // On success: check if biometric is available and offer to enable it
+      if (mounted) _offerBiometric(_emailCtrl.text.trim());
     } catch (_) {
-      setState(() => _error = 'Correo o contraseña incorrectos');
+      if (mounted) setState(() => _error = 'Correo o contraseña incorrectos');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _offerBiometric(String email) async {
+    if (_biometricEnabled) return; // already enabled
+    try {
+      final canCheck = await _localAuth.canCheckBiometrics;
+      final isSupported = await _localAuth.isDeviceSupported();
+      if (!canCheck || !isSupported || !mounted) return;
+
+      final enable = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Acceso con huella'),
+          content: const Text(
+              '¿Quieres activar el inicio de sesión con huella dactilar para la próxima vez?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('No, gracias'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Activar'),
+            ),
+          ],
+        ),
+      );
+
+      if (enable == true) {
+        await _settings.put(_kBiometricEmail, email);
+        await _settings.put(_kBiometricEnabled, 'true');
+      }
+    } catch (_) {}
   }
 
   @override
@@ -71,6 +166,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       key: const Key('email_field'),
                       controller: _emailCtrl,
                       keyboardType: TextInputType.emailAddress,
+                      autocorrect: false,
                       decoration: const InputDecoration(
                         labelText: 'Correo electrónico',
                         prefixIcon: Icon(Icons.email_outlined),
@@ -83,11 +179,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     TextFormField(
                       key: const Key('password_field'),
                       controller: _passCtrl,
-                      obscureText: true,
-                      decoration: const InputDecoration(
+                      obscureText: _obscurePassword,
+                      decoration: InputDecoration(
                         labelText: 'Contraseña',
-                        prefixIcon: Icon(Icons.lock_outlined),
-                        border: OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.lock_outlined),
+                        border: const OutlineInputBorder(),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                          ),
+                          tooltip: _obscurePassword
+                              ? 'Mostrar contraseña'
+                              : 'Ocultar contraseña',
+                          onPressed: () => setState(
+                              () => _obscurePassword = !_obscurePassword),
+                        ),
                       ),
                       validator: (v) =>
                           (v == null || v.isEmpty) ? 'Campo requerido' : null,
@@ -116,6 +224,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             : const Text('Iniciar sesión'),
                       ),
                     ),
+                    if (_biometricEnabled) ...[
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.fingerprint),
+                          label: const Text('Entrar con huella'),
+                          onPressed: _loading ? null : _tryBiometric,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

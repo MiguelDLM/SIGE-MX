@@ -140,17 +140,29 @@ class _EventCard extends StatelessWidget {
                   labelStyle:
                       TextStyle(color: _tipoColor(event.tipo)),
                 ),
-                if (isAdmin) ...[
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.people_outline, size: 16),
+                      label: const Text('Participantes'),
+                      onPressed: () => context.push(
+                          '/events/${event.id}/participants', extra: event),
+                    ),
+                    if (isAdmin) ...[
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.workspace_premium_outlined,
+                            size: 16),
+                        label: const Text('Constancias'),
+                        onPressed: () => context.push(
+                            '/events/${event.id}/constancias', extra: event),
+                      ),
                       TextButton.icon(
                         onPressed: onEdit,
                         icon: const Icon(Icons.edit_outlined, size: 18),
                         label: const Text('Editar'),
                       ),
-                      const SizedBox(width: 8),
                       TextButton.icon(
                         onPressed: onDelete,
                         icon: const Icon(Icons.delete_outline,
@@ -159,8 +171,8 @@ class _EventCard extends StatelessWidget {
                             style: TextStyle(color: Colors.red)),
                       ),
                     ],
-                  ),
-                ],
+                  ],
+                ),
               ],
             ),
           ),

@@ -25,6 +25,13 @@ import '../../features/admin/cycles_screen.dart';
 import '../../features/admin/users_admin_screen.dart';
 import '../../features/admin/user_form_screen.dart';
 import '../../features/events/event_form_screen.dart';
+import '../../features/events/event_participants_screen.dart';
+import '../../features/events/constancias_screen.dart';
+import '../../features/horario/horario_screen.dart';
+import '../../features/admin/materias_screen.dart';
+import '../../features/admin/grupos_screen.dart';
+import '../../features/admin/grupo_detail_screen.dart';
+import '../../features/admin/horario_admin_screen.dart';
 import '../../shared/models/event.dart';
 
 final _routerNotifierProvider =
@@ -169,6 +176,45 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/admin/users/new',
             builder: (_, __) => const UserFormScreen(),
+          ),
+          // Admin — materias y grupos
+          GoRoute(
+            path: '/admin/materias',
+            builder: (_, __) => const AdminMateriasScreen(),
+          ),
+          GoRoute(
+            path: '/admin/grupos',
+            builder: (_, __) => const AdminGruposScreen(),
+          ),
+          GoRoute(
+            path: '/admin/grupos/:groupId/alumnos',
+            builder: (_, state) =>
+                GrupoDetailScreen(grupo: state.extra as Grupo),
+          ),
+          GoRoute(
+            path: '/admin/grupos/:groupId/horario',
+            builder: (_, state) =>
+                AdminHorarioScreen(grupo: state.extra as Grupo),
+          ),
+          // Horario personal
+          GoRoute(
+            path: '/mi-horario',
+            builder: (_, __) => const MiHorarioScreen(),
+          ),
+          // Constancias
+          GoRoute(
+            path: '/mis-constancias',
+            builder: (_, __) => const MisConstanciasScreen(),
+          ),
+          GoRoute(
+            path: '/events/:id/constancias',
+            builder: (_, state) =>
+                ConstanciasEventScreen(event: state.extra as Event),
+          ),
+          GoRoute(
+            path: '/events/:id/participants',
+            builder: (_, state) =>
+                EventParticipantsScreen(event: state.extra as Event),
           ),
         ],
       ),

@@ -97,3 +97,28 @@ async def assign_teacher(
     )
     await db.commit()
     return {"assigned": True}
+
+
+async def remove_student(
+    group_id: uuid.UUID, student_id: uuid.UUID, db: AsyncSession
+) -> dict:
+    result = await db.execute(
+        select(GroupStudent).where(
+            GroupStudent.group_id == group_id,
+            GroupStudent.student_id == student_id,
+        )
+    )
+    gs = result.scalar_one_or_none()
+    if not gs:
+        raise BusinessError("NOT_FOUND", "Alumno no encontrado en este grupo", status_code=404)
+    await db.delete(gs)
+    await db.commit()
+    return {"removed": True}
+
+
+async def deactivate_group(group_id: uuid.UUID, db: AsyncSession) -> Group:
+    group = await get_group_by_id(group_id, db)
+    group.activo = False
+    await db.commit()
+    await db.refresh(group)
+    return group

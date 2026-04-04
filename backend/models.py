@@ -29,3 +29,7 @@ import modules.reports.models  # noqa: F401 — certificates, reports
 
 # Plan 8
 import modules.school_config.models  # noqa: F401 — school_config
+
+# Plan 9
+import modules.horarios.models  # noqa: F401 — horario_clases
+import modules.constancias.models  # noqa: F401 — constancias
