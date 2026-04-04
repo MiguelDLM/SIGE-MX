@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db
 from core.security import get_current_user, require_roles
 from modules.users import service
-from modules.users.schemas import UserCreate, UserResponse
+from modules.users.schemas import UserCreate, UserResponse, UserUpdate
 
 router = APIRouter(prefix="/api/v1/users", tags=["users"])
 
@@ -64,3 +64,24 @@ async def get_user(
     user = await service.get_user_by_id(user_id, db)
     roles = await service.get_user_roles(user.id, db)
     return {"data": _user_to_response(user, roles)}
+
+
+@router.patch("/{user_id}")
+async def update_user(
+    user_id: uuid.UUID,
+    data: UserUpdate,
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_roles(_admin_roles)),
+):
+    user = await service.update_user(user_id, data, db)
+    roles = await service.get_user_roles(user.id, db)
+    return {"data": _user_to_response(user, roles)}
+
+
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def deactivate_user(
+    user_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_roles(_admin_roles)),
+):
+    await service.deactivate_user(user_id, db)

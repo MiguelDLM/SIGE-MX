@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.exceptions import BusinessError
 from core.security import hash_password
 from modules.users.models import Role, User, UserRole, UserStatus
-from modules.users.schemas import UserCreate
+from modules.users.schemas import UserCreate, UserUpdate
 
 
 async def create_user(data: UserCreate, db: AsyncSession) -> User:
@@ -66,6 +66,21 @@ async def get_user_roles(user_id: uuid.UUID, db: AsyncSession) -> list[str]:
         .where(UserRole.user_id == user_id)
     )
     return list(result.scalars())
+
+
+async def update_user(user_id: uuid.UUID, data: UserUpdate, db: AsyncSession) -> User:
+    user = await get_user_by_id(user_id, db)
+    for field, value in data.model_dump(exclude_unset=True).items():
+        setattr(user, field, value)
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+async def deactivate_user(user_id: uuid.UUID, db: AsyncSession) -> None:
+    user = await get_user_by_id(user_id, db)
+    user.status = UserStatus.inactivo
+    await db.commit()
 
 
 async def list_users(

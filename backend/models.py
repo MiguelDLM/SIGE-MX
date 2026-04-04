@@ -26,3 +26,6 @@ import modules.justifications.models  # noqa: F401 — justifications
 import modules.messaging.models  # noqa: F401 — messages, message_recipients
 import modules.events.models  # noqa: F401 — events, event_participants
 import modules.reports.models  # noqa: F401 — certificates, reports
+
+# Plan 8
+import modules.school_config.models  # noqa: F401 — school_config

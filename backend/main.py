@@ -70,3 +70,6 @@ app.include_router(events_router)
 
 from modules.reports.router import router as reports_router
 app.include_router(reports_router)
+
+from modules.school_config.router import router as school_config_router
+app.include_router(school_config_router)

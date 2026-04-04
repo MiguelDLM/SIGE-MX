@@ -151,3 +151,35 @@ async def test_list_users_by_role(client: AsyncClient, admin_token):
 async def test_list_users_no_auth(client: AsyncClient):
     resp = await client.get("/api/v1/users/")
     assert resp.status_code in (401, 403)
+
+
+@pytest.mark.asyncio
+async def test_update_user_name(client: AsyncClient, directivo_token, directivo_user):
+    response = await client.patch(
+        f"/api/v1/users/{directivo_user.id}",
+        json={"nombre": "AdminRenombrado"},
+        headers={"Authorization": f"Bearer {directivo_token}"},
+    )
+    assert response.status_code == 200
+    assert response.json()["data"]["nombre"] == "AdminRenombrado"
+
+
+@pytest.mark.asyncio
+async def test_deactivate_user(client: AsyncClient, directivo_token, directivo_user):
+    response = await client.delete(
+        f"/api/v1/users/{directivo_user.id}",
+        headers={"Authorization": f"Bearer {directivo_token}"},
+    )
+    assert response.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_deactivate_nonexistent_user_returns_404(
+    client: AsyncClient, directivo_token
+):
+    import uuid
+    response = await client.delete(
+        f"/api/v1/users/{uuid.uuid4()}",
+        headers={"Authorization": f"Bearer {directivo_token}"},
+    )
+    assert response.status_code == 404
