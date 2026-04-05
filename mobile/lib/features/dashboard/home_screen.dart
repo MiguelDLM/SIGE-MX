@@ -42,17 +42,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       if (!mounted) return;
       final enable = await showDialog<bool>(
         context: context,
-        builder: (_) => AlertDialog(
+        builder: (dialogCtx) => AlertDialog(
           title: const Text('Acceso con huella'),
           content: const Text(
               '¿Quieres activar el inicio de sesión con huella dactilar para la próxima vez?'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () => Navigator.pop(dialogCtx, false),
               child: const Text('No, gracias'),
             ),
             FilledButton(
-              onPressed: () => Navigator.pop(context, true),
+              onPressed: () => Navigator.pop(dialogCtx, true),
               child: const Text('Activar'),
             ),
           ],

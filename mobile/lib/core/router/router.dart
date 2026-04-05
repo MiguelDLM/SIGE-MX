@@ -60,7 +60,6 @@ class _RouterNotifier extends ChangeNotifier {
     if (serverUrl == null || serverUrl.isEmpty) {
       return state.matchedLocation == '/setup' ? null : '/setup';
     }
-
     final authAsync = _ref.read(authNotifierProvider);
     return authAsync.when(
       loading: () => null,
@@ -85,15 +84,20 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: notifier.redirect,
     initialLocation: '/login',
     routes: [
-      GoRoute(
-        path: '/setup',
-        builder: (_, __) => const ServerSetupScreen(),
-      ),
-      GoRoute(
-        path: '/login',
-        builder: (_, __) => const LoginScreen(),
-      ),
+      GoRoute(path: '/setup', builder: (_, __) => const ServerSetupScreen()),
+      GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
 
+      // ── Full-screen routes (above shell, no bottom nav, proper back) ──
+      GoRoute(
+        parentNavigatorKey: _rootKey,
+        path: '/admin/grupos/:groupId/alumnos',
+        builder: (_, state) => GrupoDetailScreen(grupo: state.extra as Grupo),
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootKey,
+        path: '/admin/grupos/:groupId/horario',
+        builder: (_, state) => AdminHorarioScreen(grupo: state.extra as Grupo),
+      ),
       GoRoute(
         parentNavigatorKey: _rootKey,
         path: '/admin/users/new',
@@ -107,58 +111,43 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         parentNavigatorKey: _rootKey,
         path: '/events/:id/edit',
-        builder: (_, state) =>
-            EventFormScreen(existing: state.extra as Event?),
+        builder: (_, state) => EventFormScreen(existing: state.extra as Event?),
       ),
       GoRoute(
         parentNavigatorKey: _rootKey,
         path: '/events/:id/constancias',
-        builder: (_, state) =>
-            ConstanciasEventScreen(event: state.extra as Event),
+        builder: (_, state) => ConstanciasEventScreen(event: state.extra as Event),
       ),
       GoRoute(
         parentNavigatorKey: _rootKey,
         path: '/events/:id/participants',
-        builder: (_, state) =>
-            EventParticipantsScreen(event: state.extra as Event),
+        builder: (_, state) => EventParticipantsScreen(event: state.extra as Event),
       ),
 
-      // ── Shell routes (with bottom nav bar) ──────────────────────────
+      // ── Shell routes (with bottom navigation bar) ─────────────────────
       ShellRoute(
         builder: (context, state, child) => AppShell(child: child),
         routes: [
           GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
-          GoRoute(
-            path: '/attendance',
-            builder: (_, __) => const AttendanceIndexScreen(),
-          ),
+          GoRoute(path: '/attendance', builder: (_, __) => const AttendanceIndexScreen()),
           GoRoute(
             path: '/attendance/take/:groupId',
             builder: (_, s) =>
                 TakeAttendanceScreen(groupId: s.pathParameters['groupId']!),
           ),
-          GoRoute(
-            path: '/grades',
-            builder: (_, __) => const GradesIndexScreen(),
-          ),
+          GoRoute(path: '/grades', builder: (_, __) => const GradesIndexScreen()),
           GoRoute(
             path: '/grades/capture/:evaluationId',
-            builder: (_, s) => CaptureGradesScreen(
-                evaluationId: s.pathParameters['evaluationId']!),
+            builder: (_, s) =>
+                CaptureGradesScreen(evaluationId: s.pathParameters['evaluationId']!),
           ),
           GoRoute(
             path: '/grades/view/:studentId',
             builder: (_, s) =>
                 ViewGradesScreen(studentId: s.pathParameters['studentId']!),
           ),
-          GoRoute(
-            path: '/messages',
-            builder: (_, __) => const InboxScreen(),
-          ),
-          GoRoute(
-            path: '/messages/new',
-            builder: (_, __) => const SendMessageScreen(),
-          ),
+          GoRoute(path: '/messages', builder: (_, __) => const InboxScreen()),
+          GoRoute(path: '/messages/new', builder: (_, __) => const SendMessageScreen()),
           GoRoute(
             path: '/justifications',
             builder: (_, __) => const JustificationListScreen(),
@@ -167,80 +156,24 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/justifications/new',
             builder: (_, __) => const SubmitJustificationScreen(),
           ),
-          GoRoute(
-            path: '/events',
-            builder: (_, __) => const EventsScreen(),
-          ),
-          GoRoute(
-            path: '/reports',
-            builder: (_, __) => const ReportsScreen(),
-          ),
-          GoRoute(
-            path: '/students',
-            builder: (_, __) => const AlumnosAdminScreen(),
-          ),
-          GoRoute(
-            path: '/groups',
-            builder: (_, __) => const AdminGruposScreen(),
-          ),
-          GoRoute(
-            path: '/admin/grupos/:groupId/alumnos',
-            builder: (_, state) =>
-                GrupoDetailScreen(grupo: state.extra as Grupo),
-          ),
-          GoRoute(
-            path: '/admin/grupos/:groupId/horario',
-            builder: (_, state) =>
-                AdminHorarioScreen(grupo: state.extra as Grupo),
-          ),
-          GoRoute(
-            path: '/imports',
-            builder: (_, __) => const _ComingSoon(label: 'Importar'),
-          ),
-          GoRoute(
-            path: '/settings',
-            builder: (_, __) => const SettingsScreen(),
-          ),
-          GoRoute(
-            path: '/admin/config',
-            builder: (_, __) => const SchoolConfigScreen(),
-          ),
-          GoRoute(
-            path: '/admin/cycles',
-            builder: (_, __) => const CyclesScreen(),
-          ),
-          GoRoute(
-            path: '/admin/users',
-            builder: (_, __) => const UsersAdminScreen(),
-          ),
-          GoRoute(
-            path: '/admin/materias',
-            builder: (_, __) => const AdminMateriasScreen(),
-          ),
-          GoRoute(
-            path: '/admin/grupos',
-            builder: (_, __) => const AdminGruposScreen(),
-          ),
-          GoRoute(
-            path: '/admin/alumnos',
-            builder: (_, __) => const AlumnosAdminScreen(),
-          ),
-          GoRoute(
-            path: '/admin/padres',
-            builder: (_, __) => const ParentsAdminScreen(),
-          ),
-          GoRoute(
-            path: '/admin/maestros',
-            builder: (_, __) => const MaestrosAdminScreen(),
-          ),
-          GoRoute(
-            path: '/mi-horario',
-            builder: (_, __) => const MiHorarioScreen(),
-          ),
-          GoRoute(
-            path: '/mis-constancias',
-            builder: (_, __) => const MisConstanciasScreen(),
-          ),
+          GoRoute(path: '/events', builder: (_, __) => const EventsScreen()),
+          GoRoute(path: '/reports', builder: (_, __) => const ReportsScreen()),
+          GoRoute(path: '/imports', builder: (_, __) => const _ComingSoon(label: 'Importar')),
+          GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
+          GoRoute(path: '/mi-horario', builder: (_, __) => const MiHorarioScreen()),
+          GoRoute(path: '/mis-constancias', builder: (_, __) => const MisConstanciasScreen()),
+          // Admin screens (accessed from Settings)
+          GoRoute(path: '/admin/config', builder: (_, __) => const SchoolConfigScreen()),
+          GoRoute(path: '/admin/cycles', builder: (_, __) => const CyclesScreen()),
+          GoRoute(path: '/admin/users', builder: (_, __) => const UsersAdminScreen()),
+          GoRoute(path: '/admin/materias', builder: (_, __) => const AdminMateriasScreen()),
+          GoRoute(path: '/admin/grupos', builder: (_, __) => const AdminGruposScreen()),
+          GoRoute(path: '/admin/alumnos', builder: (_, __) => const AlumnosAdminScreen()),
+          GoRoute(path: '/admin/maestros', builder: (_, __) => const MaestrosAdminScreen()),
+          GoRoute(path: '/admin/padres', builder: (_, __) => const ParentsAdminScreen()),
+          // Legacy routes mapped to new screens
+          GoRoute(path: '/students', builder: (_, __) => const AlumnosAdminScreen()),
+          GoRoute(path: '/groups', builder: (_, __) => const AdminGruposScreen()),
         ],
       ),
     ],
@@ -267,11 +200,11 @@ class AttendanceIndexScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authAsync = ref.watch(authNotifierProvider);
     return authAsync.when(
-      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (e, _) => Scaffold(body: Center(child: Text('$e'))),
       data: (auth) {
-        if (auth is AuthAuthenticated &&
-            auth.primaryRole == 'docente') {
+        if (auth is AuthAuthenticated && auth.primaryRole == 'docente') {
           return const TakeAttendanceGroupListScreen();
         }
         return const ViewAttendanceScreen();
@@ -287,7 +220,8 @@ class GradesIndexScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authAsync = ref.watch(authNotifierProvider);
     return authAsync.when(
-      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (e, _) => Scaffold(body: Center(child: Text('$e'))),
       data: (auth) {
         if (auth is AuthAuthenticated && auth.primaryRole == 'docente') {

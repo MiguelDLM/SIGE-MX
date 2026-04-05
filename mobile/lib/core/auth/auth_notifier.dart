@@ -40,13 +40,15 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
       return _parseToken(data['access_token'] as String);
     } on DioException catch (e) {
       if (e.response?.statusCode == 401) {
+        // Refresh token is invalid/expired — force re-login
         await storage.clearTokens();
         return const AuthUnauthenticated();
       }
+      // Network or server error: keep the stored token and stay logged in
       return _parseToken(accessToken);
     } catch (_) {
-      await storage.clearTokens();
-      return const AuthUnauthenticated();
+      // Unexpected error (e.g. parse failure): keep token, don't log out
+      return _parseToken(accessToken);
     }
   }
 

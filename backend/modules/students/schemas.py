@@ -14,6 +14,8 @@ class StudentCreate(BaseModel):
     email: Optional[str] = None
     curp: Optional[str] = None
     fecha_nacimiento: Optional[date] = None
+    status: Optional[str] = "activo"
+    current_group_id: Optional[uuid.UUID] = None
     numero_seguro_social: Optional[str] = None
     tipo_sangre: Optional[str] = None
     direccion: Optional[str] = None
@@ -30,6 +32,8 @@ class StudentUpdate(BaseModel):
     email: Optional[str] = None
     curp: Optional[str] = None
     fecha_nacimiento: Optional[date] = None
+    status: Optional[str] = None
+    current_group_id: Optional[uuid.UUID] = None
     direccion: Optional[str] = None
     municipio: Optional[str] = None
     estado: Optional[str] = None
@@ -46,6 +50,8 @@ class StudentResponse(BaseModel):
     email: Optional[str] = None
     curp: Optional[str] = None
     fecha_nacimiento: Optional[date] = None
+    status: str
+    current_group_id: Optional[uuid.UUID] = None
     municipio: Optional[str] = None
     estado: Optional[str] = None
     created_at: datetime

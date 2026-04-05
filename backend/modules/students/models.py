@@ -1,12 +1,19 @@
 # backend/modules/students/models.py
+import enum
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, String, func
+from sqlalchemy import Boolean, Date, DateTime, Enum as SAEnum, ForeignKey, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from core.database import Base
+
+
+class StudentStatus(str, enum.Enum):
+    activo = "activo"
+    inactivo = "inactivo"
+    graduado = "graduado"
 
 
 class Student(Base):
@@ -18,10 +25,18 @@ class Student(Base):
     user_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
     )
+    current_group_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("groups.id"), nullable=True
+    )
     matricula: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     email: Mapped[str | None] = mapped_column(String, nullable=True)
     curp: Mapped[str | None] = mapped_column(String, nullable=True)
     fecha_nacimiento: Mapped[date | None] = mapped_column(Date, nullable=True)
+    status: Mapped[StudentStatus] = mapped_column(
+        SAEnum(StudentStatus, name="student_status", create_type=False),
+        default=StudentStatus.activo,
+        nullable=False,
+    )
     numero_seguro_social: Mapped[str | None] = mapped_column(String, nullable=True)
     tipo_sangre: Mapped[str | None] = mapped_column(String, nullable=True)
     direccion: Mapped[str | None] = mapped_column(String, nullable=True)
@@ -44,7 +59,9 @@ class Parent(Base):
     user_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
     )
+    curp: Mapped[str | None] = mapped_column(String, unique=True, nullable=True)
     ocupacion: Mapped[str | None] = mapped_column(String, nullable=True)
+    telefono_trabajo: Mapped[str | None] = mapped_column(String, nullable=True)
 
 
 class StudentParent(Base):

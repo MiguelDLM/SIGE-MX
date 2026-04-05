@@ -123,7 +123,7 @@ async def create_student(data: StudentCreate, db: AsyncSession) -> Student:
             db.add(UserRole(user_id=user.id, role_id=role.id))
             user_id = user.id
 
-    student_data = data.model_dump()
+    student_data = data.model_dump(exclude={"email", "curp", "fecha_nacimiento"})
     student_data["user_id"] = user_id
     
     student = Student(**student_data)

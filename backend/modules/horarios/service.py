@@ -72,40 +72,62 @@ async def list_by_teacher(teacher_id: uuid.UUID, db: AsyncSession) -> list[Horar
 
 
 async def mi_horario(user_id: uuid.UUID, roles: list[str], db: AsyncSession) -> list[HorarioResponse]:
-    """Return schedule based on user role: student → group schedule; teacher → their classes."""
+    """Return schedule based on user role: student → group schedule; teacher → their classes; parent → children's schedules."""
+    all_entries: list[HorarioResponse] = []
+    seen_ids: set[str] = set()
+
+    async def add_unique(entries: list[HorarioResponse]):
+        for e in entries:
+            if str(e.id) not in seen_ids:
+                seen_ids.add(str(e.id))
+                all_entries.append(e)
+
     if "docente" in roles:
         teacher_result = await db.execute(
             select(Teacher).where(Teacher.user_id == user_id)
         )
         teacher = teacher_result.scalar_one_or_none()
         if teacher:
-            return await list_by_teacher(teacher.id, db)
+            entries = await list_by_teacher(teacher.id, db)
+            await add_unique(entries)
 
-    if "alumno" in roles or "tutor" in roles:
+    if "alumno" in roles:
         student_result = await db.execute(
             select(Student).where(Student.user_id == user_id)
         )
         student = student_result.scalar_one_or_none()
         if student:
-            # A student can be in multiple groups (e.g., repeating a grade)
             gs_result = await db.execute(
                 select(GroupStudent).where(GroupStudent.student_id == student.id)
             )
-            all_entries: list[HorarioResponse] = []
             for gs in gs_result.scalars():
                 entries = await list_by_group(gs.group_id, db)
-                all_entries.extend(entries)
-            # Sort by day then time, deduplicate by id
-            seen: set[str] = set()
-            unique: list[HorarioResponse] = []
-            for e in sorted(all_entries, key=lambda x: (x.dia_semana, str(x.hora_inicio))):
-                key = str(e.id)
-                if key not in seen:
-                    seen.add(key)
-                    unique.append(e)
-            return unique
+                await add_unique(entries)
 
-    return []
+    if "padre" in roles or "tutor" in roles:
+        from modules.students.models import Parent, StudentParent
+        parent_result = await db.execute(
+            select(Parent).where(Parent.user_id == user_id)
+        )
+        parent = parent_result.scalar_one_or_none()
+        if parent:
+            # Get linked students
+            linked_students = await db.execute(
+                select(Student)
+                .join(StudentParent, StudentParent.student_id == Student.id)
+                .where(StudentParent.parent_id == parent.id)
+            )
+            for student in linked_students.scalars():
+                gs_result = await db.execute(
+                    select(GroupStudent).where(GroupStudent.student_id == student.id)
+                )
+                for gs in gs_result.scalars():
+                    entries = await list_by_group(gs.group_id, db)
+                    await add_unique(entries)
+
+    # Sort final result by day and time
+    all_entries.sort(key=lambda x: (x.dia_semana, str(x.hora_inicio)))
+    return all_entries
 
 
 async def update_horario(horario_id: uuid.UUID, data: HorarioUpdate, db: AsyncSession) -> HorarioClase:

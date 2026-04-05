@@ -1,12 +1,24 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 final secureStorageProvider = Provider<SecureStorage>((_) => SecureStorage());
 
 class SecureStorage {
+  // encryptedSharedPreferences: true is more stable across APK updates on Android
   final _storage = const FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: false),
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
   );
+
+  Future<String?> _safeRead(String key) async {
+    try {
+      return await _storage.read(key: key);
+    } on PlatformException {
+      // Keystore can become invalid after reinstall; clear and return null
+      try { await _storage.delete(key: key); } catch (_) {}
+      return null;
+    }
+  }
 
   Future<void> saveTokens({
     required String access,
@@ -18,8 +30,8 @@ class SecureStorage {
     ]);
   }
 
-  Future<String?> getAccessToken() => _storage.read(key: 'access_token');
-  Future<String?> getRefreshToken() => _storage.read(key: 'refresh_token');
+  Future<String?> getAccessToken() => _safeRead('access_token');
+  Future<String?> getRefreshToken() => _safeRead('refresh_token');
 
   Future<void> clearTokens() async {
     await Future.wait([

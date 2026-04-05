@@ -51,35 +51,44 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final creds = await storage.getCredentials();
       if (creds == null) return;
 
-      final canCheck = await _localAuth.canCheckBiometrics;
-      final isDeviceSupported = await _localAuth.isDeviceSupported();
-      if (!canCheck || !isDeviceSupported) return;
+      final isSupported = await _localAuth.isDeviceSupported();
+      if (!isSupported) return;
+
+      // Verify at least one biometric is actually enrolled
+      final enrolled = await _localAuth.getAvailableBiometrics();
+      if (enrolled.isEmpty) return;
+
+      if (!mounted) return;
 
       final authenticated = await _localAuth.authenticate(
         localizedReason: 'Inicia sesión con tu huella',
         options: const AuthenticationOptions(
-          biometricOnly: true,
-          stickyAuth: true,
+          // Allow PIN/pattern as fallback — avoids black screen when
+          // biometric sensor is busy or temporarily unavailable
+          biometricOnly: false,
+          // stickyAuth: false prevents the overlay from sticking when the
+          // app goes to background, which caused the black screen
+          stickyAuth: false,
+          sensitiveTransaction: false,
         ),
       );
 
       if (authenticated && mounted) {
-        setState(() {
-          _loading = true;
-          _error = null;
-        });
+        setState(() { _loading = true; _error = null; });
         try {
           await ref.read(authNotifierProvider.notifier).login(
                 creds['email']!,
                 creds['password']!,
               );
         } catch (e) {
-          setState(() => _error = 'Fallo en autenticación biométrica: $e');
+          if (mounted) setState(() => _error = 'Fallo en autenticación: $e');
         } finally {
           if (mounted) setState(() => _loading = false);
         }
       }
-    } catch (_) {}
+    } catch (_) {
+      // Silently ignore — biometric unavailable or cancelled by user
+    }
   }
 
   Future<void> _submit() async {
