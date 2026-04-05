@@ -9,27 +9,39 @@ class TeacherModel {
   final String id;
   final String nombre;
   final String? apellidoPaterno;
+  final String? apellidoMaterno;
   final String? especialidad;
   final String? numeroEmpleado;
+  final String? email;
+  final String? curp;
+  final String? fechaNacimiento;
 
   const TeacherModel({
     required this.id,
     required this.nombre,
     this.apellidoPaterno,
+    this.apellidoMaterno,
     this.especialidad,
     this.numeroEmpleado,
+    this.email,
+    this.curp,
+    this.fechaNacimiento,
   });
 
   factory TeacherModel.fromJson(Map<String, dynamic> j) => TeacherModel(
         id: j['id'] as String,
         nombre: j['nombre'] as String? ?? '',
         apellidoPaterno: j['apellido_paterno'] as String?,
+        apellidoMaterno: j['apellido_materno'] as String?,
         especialidad: j['especialidad'] as String?,
         numeroEmpleado: j['numero_empleado'] as String?,
+        email: j['email'] as String?,
+        curp: j['curp'] as String?,
+        fechaNacimiento: j['fecha_nacimiento'] as String?,
       );
 
   String get displayName =>
-      [nombre, apellidoPaterno].where((s) => s != null && s!.isNotEmpty).join(' ');
+      [nombre, apellidoPaterno, apellidoMaterno].where((s) => s != null && s!.isNotEmpty).join(' ');
 }
 
 // ---------- Providers ----------
@@ -388,13 +400,13 @@ class _MaestroDialogState extends State<_MaestroDialog> {
     final e = widget.existing;
     _nombreCtrl = TextEditingController(text: e?.nombre ?? '');
     _apPaternoCtrl = TextEditingController(text: e?.apellidoPaterno ?? '');
-    _apMaternoCtrl = TextEditingController(text: e?['apellido_materno'] as String? ?? '');
+    _apMaternoCtrl = TextEditingController(text: e?.apellidoMaterno ?? '');
     _empleadoCtrl = TextEditingController(text: e?.numeroEmpleado ?? '');
     _especialidadCtrl = TextEditingController(text: e?.especialidad ?? '');
     _emailCtrl = TextEditingController(text: e?.email ?? '');
     _curpCtrl = TextEditingController(text: e?.curp ?? '');
-    if (e?.fecha_nacimiento != null) {
-      _fechaNacimiento = DateTime.parse(e!.fecha_nacimiento! as String);
+    if (e?.fechaNacimiento != null) {
+      _fechaNacimiento = DateTime.parse(e!.fechaNacimiento!);
     }
   }
 
