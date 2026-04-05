@@ -24,17 +24,18 @@ async def create_teacher(data: TeacherCreate, db: AsyncSession) -> Teacher:
         user = user_res.scalar_one_or_none()
         
         if not user:
-            # Default password is CURP or employee number
-            pwd = data.curp or data.numero_empleado or "SAS12345"
+            # Standardized default password: CURP (uppercase) or employee number or fallback
+            raw_pwd = (data.curp or data.numero_empleado or "SAS12345").strip().upper()
             user = User(
                 email=data.email,
-                password_hash=hash_password(pwd),
+                password_hash=hash_password(raw_pwd),
                 nombre=data.nombre,
                 apellido_paterno=data.apellido_paterno,
                 apellido_materno=data.apellido_materno,
-                curp=data.curp,
+                curp=data.curp.strip().upper() if data.curp else None,
                 fecha_nacimiento=data.fecha_nacimiento,
                 status=UserStatus.activo,
+                must_change_password=True,
             )
             db.add(user)
             await db.flush()

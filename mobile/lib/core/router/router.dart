@@ -6,6 +6,7 @@ import '../auth/auth_notifier.dart';
 import '../auth/auth_state.dart';
 import '../config/server_config.dart';
 import '../../features/auth/login_screen.dart';
+import '../../features/auth/change_password_screen.dart';
 import '../../features/dashboard/app_shell.dart';
 import '../../features/dashboard/home_screen.dart';
 import '../../features/setup/server_setup_screen.dart';
@@ -68,8 +69,15 @@ class _RouterNotifier extends ChangeNotifier {
         final loc = state.matchedLocation;
         if (loc == '/setup') return '/login';
         final isLogin = loc == '/login';
+        
         if (auth is AuthUnauthenticated) return isLogin ? null : '/login';
-        if (auth is AuthAuthenticated && isLogin) return '/home';
+        
+        if (auth is AuthAuthenticated) {
+          if (auth.mustChangePassword && loc != '/change-password') {
+            return '/change-password';
+          }
+          if (isLogin) return '/home';
+        }
         return null;
       },
     );
@@ -86,6 +94,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(path: '/setup', builder: (_, __) => const ServerSetupScreen()),
       GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
+      GoRoute(path: '/change-password', builder: (_, __) => const ChangePasswordScreen()),
 
       // ── Full-screen routes (above shell, no bottom nav, proper back) ──
       GoRoute(

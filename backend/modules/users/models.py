@@ -2,7 +2,16 @@ import enum
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, Enum as SAEnum, ForeignKey, Integer, String, func
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    Enum as SAEnum,
+    ForeignKey,
+    Integer,
+    String,
+    func,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -33,6 +42,9 @@ class User(Base):
         SAEnum(UserStatus, name="user_status", create_type=False),
         default=UserStatus.activo,
         nullable=False,
+    )
+    must_change_password: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
     )
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(

@@ -96,17 +96,18 @@ async def create_student(data: StudentCreate, db: AsyncSession) -> Student:
         user = user_res.scalar_one_or_none()
         
         if not user:
-            # Default password is CURP or matricula
-            pwd = data.curp or data.matricula
+            # Standardized default password: CURP (uppercase) or matricula
+            raw_pwd = (data.curp or data.matricula).strip().upper()
             user = User(
                 email=data.email,
-                password_hash=hash_password(pwd),
+                password_hash=hash_password(raw_pwd),
                 nombre=data.nombre,
                 apellido_paterno=data.apellido_paterno,
                 apellido_materno=data.apellido_materno,
-                curp=data.curp,
+                curp=data.curp.strip().upper() if data.curp else None,
                 fecha_nacimiento=data.fecha_nacimiento,
                 status=UserStatus.activo,
+                must_change_password=True,
             )
             db.add(user)
             await db.flush()

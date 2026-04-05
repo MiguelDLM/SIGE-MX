@@ -108,10 +108,12 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
             ?.map((e) => e.toString())
             .toList() ??
         [];
+    final mustChange = payload['must_change_password'] as bool? ?? false;
     return AuthAuthenticated(
       userId: userId,
       roles: roles,
       primaryRole: roles.isNotEmpty ? roles.first : '',
+      mustChangePassword: mustChange,
     );
   }
 }
