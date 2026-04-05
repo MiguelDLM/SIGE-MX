@@ -6,8 +6,80 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.exceptions import BusinessError
-from modules.students.models import Student
-from modules.students.schemas import StudentCreate, StudentUpdate
+from modules.students.models import Parent, Student, StudentParent
+from modules.students.schemas import LinkParentRequest, StudentCreate, StudentUpdate
+
+async def link_student_to_parent(
+    student_id: uuid.UUID, data: LinkParentRequest, db: AsyncSession
+) -> dict:
+    # 1. Check if user exists
+    user_stmt = select(User).where(User.id == data.user_id)
+    user_res = await db.execute(user_stmt)
+    user = user_res.scalar_one_or_none()
+    if not user:
+        raise BusinessError("USER_NOT_FOUND", "Usuario no encontrado", status_code=404)
+
+    # 2. Ensure user has 'padre' role
+    role_stmt = select(Role).where(Role.name == "padre")
+    role_res = await db.execute(role_stmt)
+    role = role_res.scalar_one_or_none()
+    if not role:
+        role = Role(name="padre")
+        db.add(role)
+        await db.flush()
+
+    # Check if user already has this role
+    existing_role_stmt = select(UserRole).where(
+        UserRole.user_id == user.id, UserRole.role_id == role.id
+    )
+    existing_role_res = await db.execute(existing_role_stmt)
+    if not existing_role_res.scalar_one_or_none():
+        db.add(UserRole(user_id=user.id, role_id=role.id))
+
+    # 3. Check/Create Parent profile
+    parent_stmt = select(Parent).where(Parent.user_id == user.id)
+    parent_res = await db.execute(parent_stmt)
+    parent = parent_res.scalar_one_or_none()
+    if not parent:
+        parent = Parent(user_id=user.id)
+        db.add(parent)
+        await db.flush()
+
+    # 4. Link Student and Parent
+    link_stmt = select(StudentParent).where(
+        StudentParent.student_id == student_id, StudentParent.parent_id == parent.id
+    )
+    link_res = await db.execute(link_stmt)
+    if not link_res.scalar_one_or_none():
+        db.add(
+            StudentParent(
+                student_id=student_id, parent_id=parent.id, parentesco=data.parentesco
+            )
+        )
+
+    await db.commit()
+    return {"linked": True}
+
+
+async def get_student_parents(student_id: uuid.UUID, db: AsyncSession) -> list:
+    stmt = (
+        select(User, StudentParent.parentesco)
+        .join(Parent, Parent.user_id == User.id)
+        .join(StudentParent, StudentParent.parent_id == Parent.id)
+        .where(StudentParent.student_id == student_id)
+    )
+    result = await db.execute(stmt)
+    out = []
+    for user, parentesco in result.all():
+        out.append(
+            {
+                "id": user.id,
+                "nombre": f"{user.nombre} {user.apellido_paterno or ''}".strip(),
+                "email": user.email,
+                "parentesco": parentesco,
+            }
+        )
+    return out
 
 
 from modules.users.models import Role, User, UserRole, UserStatus

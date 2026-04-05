@@ -8,11 +8,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db
 from core.security import get_current_user, require_roles
 from modules.students import service
-from modules.students.schemas import StudentCreate, StudentResponse, StudentUpdate
+from modules.students.schemas import LinkParentRequest, StudentCreate, StudentResponse, StudentUpdate
 
 router = APIRouter(prefix="/api/v1/students", tags=["students"])
 _admin = ["directivo", "control_escolar"]
-_read = ["directivo", "control_escolar", "docente"]
+_read = ["directivo", "control_escolar", "docente", "padre"]
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -72,3 +72,24 @@ async def update_student(
 ):
     student = await service.update_student(student_id, data, db)
     return {"data": StudentResponse.model_validate(student)}
+
+
+@router.get("/{student_id}/parents")
+async def get_student_parents(
+    student_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_roles(_read)),
+):
+    parents = await service.get_student_parents(student_id, db)
+    return {"data": parents}
+
+
+@router.post("/{student_id}/parents")
+async def link_student_parent(
+    student_id: uuid.UUID,
+    data: LinkParentRequest,
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_roles(_admin)),
+):
+    result = await service.link_student_to_parent(student_id, data, db)
+    return {"data": result}

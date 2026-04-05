@@ -51,3 +51,8 @@ class StudentResponse(BaseModel):
     user_id: Optional[uuid.UUID] = None
 
     model_config = {"from_attributes": True}
+
+
+class LinkParentRequest(BaseModel):
+    user_id: uuid.UUID
+    parentesco: Optional[str] = "Padre/Madre"
