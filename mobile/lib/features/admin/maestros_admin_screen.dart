@@ -470,12 +470,12 @@ class _MaestroDialogState extends State<_MaestroDialog> {
         'email': _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
         'curp': _curpCtrl.text.trim().isEmpty ? null : _curpCtrl.text.trim().toUpperCase(),
         'fecha_nacimiento': _fechaNacimiento?.toIso8601String().split('T')[0],
+        'numero_empleado': _empleadoCtrl.text.trim(),
       };
       
       if (_isEdit) {
         await dio.patch('/api/v1/teachers/${widget.existing!.id}', data: body);
       } else {
-        body['numero_empleado'] = _empleadoCtrl.text.trim();
         await dio.post('/api/v1/teachers/', data: body);
       }
       if (mounted) Navigator.pop(context, true);
@@ -497,12 +497,10 @@ class _MaestroDialogState extends State<_MaestroDialog> {
             TextField(
               controller: _nombreCtrl,
               textCapitalization: TextCapitalization.words,
-              readOnly: _isEdit,
               decoration: InputDecoration(
                 labelText: 'Nombre(s) *',
                 border: const OutlineInputBorder(),
                 errorText: _error,
-                helperText: _isEdit ? 'El nombre no se puede editar' : null,
               ),
               onChanged: (_) {
                 if (_error != null) setState(() => _error = null);
@@ -535,16 +533,14 @@ class _MaestroDialogState extends State<_MaestroDialog> {
               ],
             ),
             const SizedBox(height: 12),
-            if (!_isEdit) ...[
-              TextField(
-                controller: _empleadoCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Número de empleado',
-                  border: OutlineInputBorder(),
-                ),
+            TextField(
+              controller: _empleadoCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Número de empleado',
+                border: OutlineInputBorder(),
               ),
-              const SizedBox(height: 12),
-            ],
+            ),
+            const SizedBox(height: 12),
             TextField(
               controller: _curpCtrl,
               textCapitalization: TextCapitalization.characters,
