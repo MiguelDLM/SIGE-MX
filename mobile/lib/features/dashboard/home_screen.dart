@@ -1,15 +1,77 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:local_auth/local_auth.dart';
 
 import '../../core/auth/auth_notifier.dart';
 import '../../core/auth/auth_state.dart';
+import '../../core/storage/secure_storage.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  final _localAuth = LocalAuthentication();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkBiometrics());
+  }
+
+  Future<void> _checkBiometrics() async {
+    final settings = Hive.box<String>('settings');
+    if (settings.get('biometric_enabled') == 'true') return;
+
+    final notifier = ref.read(authNotifierProvider.notifier);
+    final email = notifier.lastEmail;
+    final password = notifier.lastPassword;
+
+    if (email == null || password == null) return;
+
+    try {
+      final canCheck = await _localAuth.canCheckBiometrics;
+      final isSupported = await _localAuth.isDeviceSupported();
+      if (!canCheck || !isSupported) return;
+
+      if (!mounted) return;
+      final enable = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Acceso con huella'),
+          content: const Text(
+              '¿Quieres activar el inicio de sesión con huella dactilar para la próxima vez?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('No, gracias'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Activar'),
+            ),
+          ],
+        ),
+      );
+
+      if (enable == true) {
+        final storage = ref.read(secureStorageProvider);
+        await storage.saveCredentials(email, password);
+        await settings.put('biometric_enabled', 'true');
+        // Clear temporary credentials
+        notifier.lastEmail = null;
+        notifier.lastPassword = null;
+      }
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final authAsync = ref.watch(authNotifierProvider);
 
     return authAsync.when(
@@ -77,8 +139,14 @@ class _HomeBody extends StatelessWidget {
         _InfoCard(
           Icons.person_search_outlined,
           'Alumnos',
-          'Gestión de expedientes y padres',
+          'Gestión de expedientes y estatus',
           onTap: () => context.push('/admin/alumnos'),
+        ),
+        _InfoCard(
+          Icons.family_restroom_outlined,
+          'Padres de Familia',
+          'Vinculación y datos de contacto',
+          onTap: () => context.push('/admin/padres'),
         ),
         _InfoCard(
           Icons.settings_applications_outlined,

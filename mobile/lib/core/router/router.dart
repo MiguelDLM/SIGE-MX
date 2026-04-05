@@ -34,6 +34,7 @@ import '../../features/admin/grupo_detail_screen.dart';
 import '../../features/admin/horario_admin_screen.dart';
 import '../../features/admin/alumnos_admin_screen.dart';
 import '../../features/admin/maestros_admin_screen.dart';
+import '../../features/admin/parents_admin_screen.dart';
 import '../../shared/models/event.dart';
 
 // Root navigator key – routes with parentNavigatorKey: _rootKey are placed
@@ -223,6 +224,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/admin/alumnos',
             builder: (_, __) => const AlumnosAdminScreen(),
+          ),
+          GoRoute(
+            path: '/admin/padres',
+            builder: (_, __) => const ParentsAdminScreen(),
           ),
           GoRoute(
             path: '/admin/maestros',

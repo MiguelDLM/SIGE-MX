@@ -92,46 +92,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final email = _emailCtrl.text.trim();
       final password = _passCtrl.text;
       await ref.read(authNotifierProvider.notifier).login(email, password);
-      if (mounted) _offerBiometric(email, password);
     } catch (_) {
       if (mounted) setState(() => _error = 'Correo o contraseña incorrectos');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
-  }
-
-  Future<void> _offerBiometric(String email, String password) async {
-    if (_biometricEnabled) return;
-    try {
-      final canCheck = await _localAuth.canCheckBiometrics;
-      final isSupported = await _localAuth.isDeviceSupported();
-      if (!canCheck || !isSupported || !mounted) return;
-
-      final enable = await showDialog<bool>(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('Acceso con huella'),
-          content: const Text(
-              '¿Quieres activar el inicio de sesión con huella dactilar?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('No, gracias'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Activar'),
-            ),
-          ],
-        ),
-      );
-
-      if (enable == true) {
-        final storage = ref.read(secureStorageProvider);
-        await storage.saveCredentials(email, password);
-        await _settings.put(_kBiometricEnabled, 'true');
-      }
-    } catch (_) {}
   }
 
   @override

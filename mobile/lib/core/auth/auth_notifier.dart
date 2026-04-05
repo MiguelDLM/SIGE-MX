@@ -12,6 +12,9 @@ final authNotifierProvider =
     AsyncNotifierProvider<AuthNotifier, AuthState>(AuthNotifier.new);
 
 class AuthNotifier extends AsyncNotifier<AuthState> {
+  String? lastEmail;
+  String? lastPassword;
+
   @override
   Future<AuthState> build() async {
     ref.read(authInterceptorProvider).onLogout = _handleLogout;
@@ -36,8 +39,6 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
       );
       return _parseToken(data['access_token'] as String);
     } on DioException catch (e) {
-      // Solo borrar tokens si el servidor rechaza explícitamente (401 = token inválido)
-      // En errores de red, mantener los tokens para que la sesión persista offline
       if (e.response?.statusCode == 401) {
         await storage.clearTokens();
         return const AuthUnauthenticated();
@@ -63,6 +64,8 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
         access: data['access_token'] as String,
         refresh: data['refresh_token'] as String,
       );
+      lastEmail = email;
+      lastPassword = password;
       state = AsyncData(_parseToken(data['access_token'] as String));
     } catch (e, st) {
       state = const AsyncData(AuthUnauthenticated());
@@ -80,11 +83,15 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
       );
     } catch (_) {}
     await ref.read(secureStorageProvider).clearTokens();
+    lastEmail = null;
+    lastPassword = null;
     state = const AsyncData(AuthUnauthenticated());
   }
 
   void _handleLogout() {
     ref.read(secureStorageProvider).clearTokens();
+    lastEmail = null;
+    lastPassword = null;
     state = const AsyncData(AuthUnauthenticated());
   }
 

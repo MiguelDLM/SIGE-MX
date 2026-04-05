@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -71,14 +70,10 @@ final miHorarioProvider =
     FutureProvider<({List<HorarioEntry> entries, bool fromCache})>((ref) async {
   final authAsync = ref.watch(authNotifierProvider);
   final auth = authAsync.valueOrNull;
-  if (auth is! AuthAuthenticated) {
-    return (entries: <HorarioEntry>[], fromCache: false);
-  }
+  if (auth is! AuthAuthenticated) return (entries: <HorarioEntry>[], fromCache: false);
 
   final cacheKey = 'schedule_${auth.userId}';
   final box = Hive.box<String>('settings');
-
-  // Check connectivity
   final connectivity = await Connectivity().checkConnectivity();
   final hasNetwork = connectivity != ConnectivityResult.none;
 
@@ -89,15 +84,11 @@ final miHorarioProvider =
       final entries = (resp.data['data'] as List)
           .map((j) => HorarioEntry.fromJson(j as Map<String, dynamic>))
           .toList();
-      // Cache result
       await box.put(cacheKey, jsonEncode(entries.map((e) => e.toJson()).toList()));
       return (entries: entries, fromCache: false);
-    } catch (_) {
-      // Fall through to cache
-    }
+    } catch (_) {}
   }
 
-  // Try cache
   final cached = box.get(cacheKey);
   if (cached != null) {
     final list = (jsonDecode(cached) as List)
@@ -105,130 +96,48 @@ final miHorarioProvider =
         .toList();
     return (entries: list, fromCache: true);
   }
-
-  return (entries: <HorarioEntry>[], fromCache: !hasNetwork);
+  return (entries: <HorarioEntry>[], fromCache: false);
 });
 
 // ---------- Screen ----------
 class MiHorarioScreen extends ConsumerWidget {
   const MiHorarioScreen({super.key});
 
-  static const _dias = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'];
+  static const _dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(miHorarioProvider);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mi Horario'),
+        title: const Text('Horario Escolar'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () => ref.invalidate(miHorarioProvider),
-          ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: () => ref.invalidate(miHorarioProvider)),
         ],
       ),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Error: $e'),
-              TextButton(
-                onPressed: () => ref.invalidate(miHorarioProvider),
-                child: const Text('Reintentar'),
-              ),
-            ],
-          ),
-        ),
+        error: (e, _) => Center(child: Text('Error: $e')),
         data: (result) {
-          final entries = result.entries;
-          if (entries.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.schedule, size: 64, color: Colors.grey),
-                  const SizedBox(height: 16),
-                  const Text('Sin horario asignado'),
-                  if (result.fromCache)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 8),
-                      child: _OfflineBadge(),
-                    ),
-                ],
-              ),
-            );
+          if (result.entries.isEmpty) {
+            return const Center(child: Text('Sin clases programadas'));
           }
 
-          // Group by dia_semana
-          final byDay = <int, List<HorarioEntry>>{};
-          for (final e in entries) {
-            byDay.putIfAbsent(e.diaSemana, () => []).add(e);
-          }
-          final sortedDays = byDay.keys.toList()..sort();
-
-          return Column(
+          // Modern table-like view
+          return ListView(
+            padding: const EdgeInsets.all(8),
             children: [
               if (result.fromCache)
-                const ColoredBox(
-                  color: Color(0xFFFFF3CD),
+                const Card(
+                  color: Colors.amberAccent,
                   child: Padding(
-                    padding:
-                        EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                    child: Row(
-                      children: [
-                        Icon(Icons.wifi_off, size: 16, color: Colors.orange),
-                        SizedBox(width: 8),
-                        Text('Sin conexión — mostrando horario guardado',
-                            style: TextStyle(color: Colors.orange)),
-                      ],
-                    ),
+                    padding: EdgeInsets.all(8.0),
+                    child: Text('Modo offline: mostrando datos guardados', textAlign: TextAlign.center),
                   ),
                 ),
-              Expanded(
-                child: ListView(
-                  children: [
-                    for (final day in sortedDays) ...[
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-                        child: Text(
-                          day < _dias.length ? _dias[day] : 'Día $day',
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleMedium
-                              ?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      ...byDay[day]!.map(
-                        (e) => Card(
-                          margin: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 2),
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor:
-                                  _colorForSubject(e.subjectId),
-                              child: Text(
-                                (e.subjectNombre ?? 'M')
-                                    .substring(0, 1)
-                                    .toUpperCase(),
-                                style: const TextStyle(color: Colors.white),
-                              ),
-                            ),
-                            title: Text(e.subjectNombre ?? e.subjectId),
-                            subtitle: Text([
-                              '${e.horaInicio.substring(0, 5)} – ${e.horaFin.substring(0, 5)}',
-                              if (e.teacherNombre != null) e.teacherNombre!,
-                              if (e.aula != null) 'Aula: ${e.aula}',
-                            ].join(' · ')),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
+              for (int d = 0; d < 6; d++) ...[
+                _buildDaySection(context, d, result.entries.where((e) => e.diaSemana == d).toList()),
+              ],
             ],
           );
         },
@@ -236,33 +145,107 @@ class MiHorarioScreen extends ConsumerWidget {
     );
   }
 
-  Color _colorForSubject(String id) {
-    final colors = [
-      Colors.blue.shade600,
-      Colors.green.shade600,
-      Colors.purple.shade600,
-      Colors.orange.shade600,
-      Colors.teal.shade600,
-      Colors.pink.shade600,
-      Colors.indigo.shade600,
-    ];
-    return colors[id.hashCode % colors.length];
-  }
-}
+  Widget _buildDaySection(BuildContext context, int dayIdx, List<HorarioEntry> dayEntries) {
+    if (dayEntries.isEmpty) return const SizedBox.shrink();
+    dayEntries.sort((a, b) => a.horaInicio.compareTo(b.horaInicio));
 
-class _OfflineBadge extends StatelessWidget {
-  const _OfflineBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Row(
-      mainAxisSize: MainAxisSize.min,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(Icons.wifi_off, size: 14, color: Colors.orange),
-        SizedBox(width: 4),
-        Text('Modo sin conexión',
-            style: TextStyle(color: Colors.orange, fontSize: 12)),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 16, 8, 8),
+          child: Text(
+            _dias[dayIdx].toUpperCase(),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).primaryColor,
+              letterSpacing: 1.2,
+            ),
+          ),
+        ),
+        for (final entry in dayEntries)
+          Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: Colors.grey.shade200),
+            ),
+            margin: const EdgeInsets.only(bottom: 8),
+            child: IntrinsicHeight(
+              child: Row(
+                children: [
+                  Container(
+                    width: 80,
+                    decoration: BoxDecoration(
+                      color: _colorForSubject(entry.subjectId).withOpacity(0.1),
+                      borderRadius: const BorderRadius.only(topLeft: Radius.circular(12), bottomLeft: Radius.circular(12)),
+                    ),
+                    padding: const EdgeInsets.all(8),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(entry.horaInicio.substring(0, 5), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                        const Icon(Icons.arrow_downward, size: 12, color: Colors.grey),
+                        Text(entry.horaFin.substring(0, 5), style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                  const VerticalDivider(width: 1),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(child: Text(entry.subjectNombre ?? 'Materia', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+                              if (entry.aula != null)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(color: Colors.blueGrey.shade50, borderRadius: BorderRadius.circular(4)),
+                                  child: Text('Aula: ${entry.aula}', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(entry.teacherNombre ?? 'Docente', style: TextStyle(color: Colors.grey.shade700, fontSize: 13)),
+                          if (entry.groupNombre != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text('Grupo: ${entry.groupNombre}', style: const TextStyle(color: Colors.blue, fontSize: 12, fontWeight: FontWeight.w500)),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Container(
+                    width: 4,
+                    decoration: BoxDecoration(
+                      color: _colorForSubject(entry.subjectId),
+                      borderRadius: const BorderRadius.only(topRight: Radius.circular(12), bottomRight: Radius.circular(12)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
       ],
     );
+  }
+
+  Color _colorForSubject(String id) {
+    final colors = [
+      Colors.blue,
+      Colors.green,
+      Colors.purple,
+      Colors.orange,
+      Colors.teal,
+      Colors.pink,
+      Colors.indigo,
+      Colors.cyan,
+    ];
+    return colors[id.hashCode.abs() % colors.length];
   }
 }
