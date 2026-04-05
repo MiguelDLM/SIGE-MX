@@ -73,16 +73,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> _resetServer() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         title: const Text('Cambiar servidor'),
         content: const Text(
             'Se cerrará tu sesión y tendrás que configurar la URL nuevamente.'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () => Navigator.pop(dialogCtx, false),
               child: const Text('Cancelar')),
           FilledButton(
-              onPressed: () => Navigator.pop(context, true),
+              onPressed: () => Navigator.pop(dialogCtx, true),
               child: const Text('Continuar')),
         ],
       ),
@@ -209,6 +209,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               subtitle: const Text('Crear grupos, asignar alumnos y horarios'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => context.push('/admin/grupos'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.people_outlined),
+              title: const Text('Gestión de alumnos'),
+              subtitle: const Text('Alta, consulta y edición de alumnos'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push('/admin/alumnos'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.school_outlined),
+              title: const Text('Gestión de maestros'),
+              subtitle: const Text('Alta, consulta y horario de docentes'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push('/admin/maestros'),
             ),
             ListTile(
               leading: const Icon(Icons.event_note_outlined),

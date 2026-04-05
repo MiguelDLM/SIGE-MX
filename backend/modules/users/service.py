@@ -86,6 +86,7 @@ async def deactivate_user(user_id: uuid.UUID, db: AsyncSession) -> None:
 async def list_users(
     db: AsyncSession,
     role: Optional[str] = None,
+    include_inactive: bool = False,
 ) -> list[tuple[User, list[str]]]:
     if role:
         stmt = (
@@ -93,10 +94,14 @@ async def list_users(
             .join(UserRole, UserRole.user_id == User.id)
             .join(Role, Role.id == UserRole.role_id)
             .where(Role.name == role)
-            .order_by(User.apellido_paterno, User.nombre)
         )
     else:
-        stmt = select(User).order_by(User.apellido_paterno, User.nombre)
+        stmt = select(User)
+
+    if not include_inactive:
+        stmt = stmt.where(User.status == UserStatus.activo)
+
+    stmt = stmt.order_by(User.apellido_paterno, User.nombre)
 
     result = await db.execute(stmt)
     users = list(result.scalars().unique())

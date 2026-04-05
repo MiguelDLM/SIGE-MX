@@ -32,7 +32,13 @@ import '../../features/admin/materias_screen.dart';
 import '../../features/admin/grupos_screen.dart';
 import '../../features/admin/grupo_detail_screen.dart';
 import '../../features/admin/horario_admin_screen.dart';
+import '../../features/admin/alumnos_admin_screen.dart';
+import '../../features/admin/maestros_admin_screen.dart';
 import '../../shared/models/event.dart';
+
+// Root navigator key – routes with parentNavigatorKey: _rootKey are placed
+// above the shell (no bottom nav bar) and have proper Android back support.
+final _rootKey = GlobalKey<NavigatorState>();
 
 final _routerNotifierProvider =
     ChangeNotifierProvider<_RouterNotifier>((ref) => _RouterNotifier(ref));
@@ -73,6 +79,7 @@ class _RouterNotifier extends ChangeNotifier {
 final routerProvider = Provider<GoRouter>((ref) {
   final notifier = ref.watch(_routerNotifierProvider);
   return GoRouter(
+    navigatorKey: _rootKey,
     refreshListenable: notifier,
     redirect: notifier.redirect,
     initialLocation: '/login',
@@ -85,6 +92,37 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/login',
         builder: (_, __) => const LoginScreen(),
       ),
+
+      GoRoute(
+        parentNavigatorKey: _rootKey,
+        path: '/admin/users/new',
+        builder: (_, __) => const UserFormScreen(),
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootKey,
+        path: '/events/new',
+        builder: (_, __) => const EventFormScreen(),
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootKey,
+        path: '/events/:id/edit',
+        builder: (_, state) =>
+            EventFormScreen(existing: state.extra as Event?),
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootKey,
+        path: '/events/:id/constancias',
+        builder: (_, state) =>
+            ConstanciasEventScreen(event: state.extra as Event),
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootKey,
+        path: '/events/:id/participants',
+        builder: (_, state) =>
+            EventParticipantsScreen(event: state.extra as Event),
+      ),
+
+      // ── Shell routes (with bottom nav bar) ──────────────────────────
       ShellRoute(
         builder: (context, state, child) => AppShell(child: child),
         routes: [
@@ -133,25 +171,26 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, __) => const EventsScreen(),
           ),
           GoRoute(
-            path: '/events/new',
-            builder: (_, __) => const EventFormScreen(),
-          ),
-          GoRoute(
-            path: '/events/:id/edit',
-            builder: (_, state) =>
-                EventFormScreen(existing: state.extra as Event?),
-          ),
-          GoRoute(
             path: '/reports',
             builder: (_, __) => const ReportsScreen(),
           ),
           GoRoute(
             path: '/students',
-            builder: (_, __) => const _ComingSoon(label: 'Alumnos'),
+            builder: (_, __) => const AlumnosAdminScreen(),
           ),
           GoRoute(
             path: '/groups',
-            builder: (_, __) => const _ComingSoon(label: 'Grupos'),
+            builder: (_, __) => const AdminGruposScreen(),
+          ),
+          GoRoute(
+            path: '/admin/grupos/:groupId/alumnos',
+            builder: (_, state) =>
+                GrupoDetailScreen(grupo: state.extra as Grupo),
+          ),
+          GoRoute(
+            path: '/admin/grupos/:groupId/horario',
+            builder: (_, state) =>
+                AdminHorarioScreen(grupo: state.extra as Grupo),
           ),
           GoRoute(
             path: '/imports',
@@ -174,11 +213,6 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, __) => const UsersAdminScreen(),
           ),
           GoRoute(
-            path: '/admin/users/new',
-            builder: (_, __) => const UserFormScreen(),
-          ),
-          // Admin — materias y grupos
-          GoRoute(
             path: '/admin/materias',
             builder: (_, __) => const AdminMateriasScreen(),
           ),
@@ -187,34 +221,20 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, __) => const AdminGruposScreen(),
           ),
           GoRoute(
-            path: '/admin/grupos/:groupId/alumnos',
-            builder: (_, state) =>
-                GrupoDetailScreen(grupo: state.extra as Grupo),
+            path: '/admin/alumnos',
+            builder: (_, __) => const AlumnosAdminScreen(),
           ),
           GoRoute(
-            path: '/admin/grupos/:groupId/horario',
-            builder: (_, state) =>
-                AdminHorarioScreen(grupo: state.extra as Grupo),
+            path: '/admin/maestros',
+            builder: (_, __) => const MaestrosAdminScreen(),
           ),
-          // Horario personal
           GoRoute(
             path: '/mi-horario',
             builder: (_, __) => const MiHorarioScreen(),
           ),
-          // Constancias
           GoRoute(
             path: '/mis-constancias',
             builder: (_, __) => const MisConstanciasScreen(),
-          ),
-          GoRoute(
-            path: '/events/:id/constancias',
-            builder: (_, state) =>
-                ConstanciasEventScreen(event: state.extra as Event),
-          ),
-          GoRoute(
-            path: '/events/:id/participants',
-            builder: (_, state) =>
-                EventParticipantsScreen(event: state.extra as Event),
           ),
         ],
       ),

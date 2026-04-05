@@ -1,5 +1,6 @@
 # backend/modules/students/router.py
 import uuid
+from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,10 +29,11 @@ async def create_student(
 async def list_students(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
+    search: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(require_roles(_read)),
 ):
-    students, total = await service.list_students(db, page, size)
+    students, total = await service.list_students(db, page, size, search)
     pages = (total + size - 1) // size
     return {
         "data": [StudentResponse.model_validate(s) for s in students],

@@ -1,7 +1,7 @@
 # backend/modules/students/service.py
 import uuid
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -34,13 +34,22 @@ async def get_student_by_id(student_id: uuid.UUID, db: AsyncSession) -> Student:
 
 
 async def list_students(
-    db: AsyncSession, page: int = 1, size: int = 20
+    db: AsyncSession, page: int = 1, size: int = 20, search: str | None = None
 ) -> tuple[list[Student], int]:
-    total_result = await db.execute(select(func.count()).select_from(Student))
+    q = select(Student)
+    if search:
+        term = f"%{search.lower()}%"
+        q = q.where(
+            or_(
+                func.lower(Student.nombre).like(term),
+                func.lower(Student.apellido_paterno).like(term),
+                func.lower(Student.matricula).like(term),
+            )
+        )
+    total_result = await db.execute(select(func.count()).select_from(q.subquery()))
     total = total_result.scalar_one()
     result = await db.execute(
-        select(Student)
-        .order_by(Student.apellido_paterno, Student.nombre)
+        q.order_by(Student.apellido_paterno, Student.nombre)
         .offset((page - 1) * size)
         .limit(size)
     )

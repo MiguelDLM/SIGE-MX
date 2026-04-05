@@ -25,20 +25,27 @@ async def get_group_by_id(group_id: uuid.UUID, db: AsyncSession) -> Group:
     return group
 
 
-async def list_groups(db: AsyncSession) -> list[Group]:
-    result = await db.execute(select(Group).order_by(Group.grado, Group.nombre))
+async def list_groups(db: AsyncSession, include_inactive: bool = False) -> list[Group]:
+    stmt = select(Group)
+    if not include_inactive:
+        stmt = stmt.where(Group.activo == True)  # noqa: E712
+    stmt = stmt.order_by(Group.grado, Group.nombre)
+    result = await db.execute(stmt)
     return list(result.scalars())
 
 
 async def list_groups_by_teacher(
-    teacher_id: uuid.UUID, db: AsyncSession
+    teacher_id: uuid.UUID, db: AsyncSession, include_inactive: bool = False
 ) -> list[Group]:
-    result = await db.execute(
+    stmt = (
         select(Group)
         .join(GroupTeacher, GroupTeacher.group_id == Group.id)
         .where(GroupTeacher.teacher_id == teacher_id)
-        .order_by(Group.grado, Group.nombre)
     )
+    if not include_inactive:
+        stmt = stmt.where(Group.activo == True)  # noqa: E712
+    stmt = stmt.order_by(Group.grado, Group.nombre)
+    result = await db.execute(stmt)
     return list(result.scalars())
 
 

@@ -100,10 +100,22 @@ class GrupoDetailScreen extends ConsumerWidget {
   }
 
   Future<void> _showAddStudent(BuildContext context, WidgetRef ref) async {
-    // Search for students by matricula or name
     final searchCtrl = TextEditingController();
     final results = ValueNotifier<List<Map<String, dynamic>>>([]);
     String? selectedStudentId;
+
+    Future<void> doSearch() async {
+      try {
+        final dio = ref.read(apiClientProvider);
+        final resp = await dio.get('/api/v1/students/',
+            queryParameters: {'search': searchCtrl.text.trim(), 'size': 20});
+        final list = (resp.data['data'] as List).cast<Map<String, dynamic>>();
+        results.value = list;
+      } catch (_) {}
+    }
+
+    // Load initial list
+    await doSearch();
 
     await showDialog(
       context: context,
@@ -120,27 +132,45 @@ class GrupoDetailScreen extends ConsumerWidget {
                   suffixIcon: IconButton(
                     icon: const Icon(Icons.search),
                     onPressed: () async {
-                      try {
-                        final dio = ref.read(apiClientProvider);
-                        final resp = await dio.get('/api/v1/students/',
-                            queryParameters: {
-                              'search': searchCtrl.text.trim()
-                            });
-                        final list = (resp.data['data'] as List)
-                            .cast<Map<String, dynamic>>();
-                        setState(() => results.value = list);
-                      } catch (_) {}
+                      await doSearch();
+                      setState(() {}); // refresh to show results
                     },
                   ),
                 ),
+                onSubmitted: (_) async {
+                  await doSearch();
+                  setState(() {});
+                },
               ),
               const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  final created = await showDialog<bool>(
+                    context: ctx,
+                    builder: (dCtx) => _AlumnoDialog(ref: ref),
+                  );
+                  if (created == true) {
+                    await doSearch();
+                    setState(() {});
+                  }
+                },
+                icon: const Icon(Icons.person_add_alt_1_outlined),
+                label: const Text('Crear nuevo alumno'),
+              ),
+              const Divider(),
               ValueListenableBuilder<List<Map<String, dynamic>>>(
                 valueListenable: results,
                 builder: (_, list, __) {
-                  if (list.isEmpty) return const SizedBox.shrink();
+                  if (list.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 20),
+                      child: Text('Sin resultados',
+                          style: TextStyle(color: Colors.grey)),
+                    );
+                  }
                   return SizedBox(
-                    height: 200,
+                    height: 250,
+                    width: double.maxFinite,
                     child: ListView.builder(
                       itemCount: list.length,
                       itemBuilder: (_, i) {
@@ -181,7 +211,6 @@ class GrupoDetailScreen extends ConsumerWidget {
                         Navigator.pop(ctx);
                         ref.invalidate(alumnosEnGrupoProvider(grupo.id));
                       } catch (e) {
-                        Navigator.pop(ctx);
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text('Error: $e')),
@@ -230,5 +259,166 @@ class GrupoDetailScreen extends ConsumerWidget {
         }
       }
     }
+  }
+}
+
+// Reusing AlumnoDialog from AlumnosAdminScreen
+class _AlumnoDialog extends StatefulWidget {
+  final Map<String, dynamic>? existing;
+  final WidgetRef ref;
+  const _AlumnoDialog({required this.ref, this.existing});
+
+  @override
+  State<_AlumnoDialog> createState() => _AlumnoDialogState();
+}
+
+class _AlumnoDialogState extends State<_AlumnoDialog> {
+  late final TextEditingController _matriculaCtrl;
+  late final TextEditingController _nombreCtrl;
+  late final TextEditingController _apPaternoCtrl;
+  late final TextEditingController _apMaternoCtrl;
+  bool _saving = false;
+  String? _error;
+
+  bool get _isEdit => widget.existing != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final e = widget.existing;
+    _matriculaCtrl =
+        TextEditingController(text: e?['matricula'] as String? ?? '');
+    _nombreCtrl = TextEditingController(text: e?['nombre'] as String? ?? '');
+    _apPaternoCtrl =
+        TextEditingController(text: e?['apellido_paterno'] as String? ?? '');
+    _apMaternoCtrl =
+        TextEditingController(text: e?['apellido_materno'] as String? ?? '');
+  }
+
+  @override
+  void dispose() {
+    _matriculaCtrl.dispose();
+    _nombreCtrl.dispose();
+    _apPaternoCtrl.dispose();
+    _apMaternoCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final nombre = _nombreCtrl.text.trim();
+    final matricula = _matriculaCtrl.text.trim();
+    if (nombre.isEmpty || (!_isEdit && matricula.isEmpty)) {
+      setState(() => _error = 'Nombre y matrícula son requeridos');
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      final dio = widget.ref.read(apiClientProvider);
+      if (_isEdit) {
+        final body = <String, dynamic>{
+          'nombre': nombre,
+          if (_apPaternoCtrl.text.trim().isNotEmpty)
+            'apellido_paterno': _apPaternoCtrl.text.trim(),
+          if (_apMaternoCtrl.text.trim().isNotEmpty)
+            'apellido_materno': _apMaternoCtrl.text.trim(),
+        };
+        await dio.patch('/api/v1/students/${widget.existing!['id']}',
+            data: body);
+      } else {
+        final body = <String, dynamic>{
+          'matricula': matricula,
+          'nombre': nombre,
+          if (_apPaternoCtrl.text.trim().isNotEmpty)
+            'apellido_paterno': _apPaternoCtrl.text.trim(),
+          if (_apMaternoCtrl.text.trim().isNotEmpty)
+            'apellido_materno': _apMaternoCtrl.text.trim(),
+        };
+        await dio.post('/api/v1/students/', data: body);
+      }
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      setState(() => _error = 'Error: $e');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(_isEdit ? 'Editar alumno' : 'Nuevo alumno'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (!_isEdit)
+              TextField(
+                controller: _matriculaCtrl,
+                textCapitalization: TextCapitalization.characters,
+                decoration: InputDecoration(
+                  labelText: 'Matrícula *',
+                  border: const OutlineInputBorder(),
+                  errorText: _error,
+                ),
+                onChanged: (_) {
+                  if (_error != null) setState(() => _error = null);
+                },
+              ),
+            if (!_isEdit) const SizedBox(height: 12),
+            TextField(
+              controller: _nombreCtrl,
+              textCapitalization: TextCapitalization.words,
+              decoration: const InputDecoration(
+                labelText: 'Nombre(s) *',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _apPaternoCtrl,
+              textCapitalization: TextCapitalization.words,
+              decoration: const InputDecoration(
+                labelText: 'Apellido paterno',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _apMaternoCtrl,
+              textCapitalization: TextCapitalization.words,
+              decoration: const InputDecoration(
+                labelText: 'Apellido materno',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            if (_error != null && _isEdit) ...[
+              const SizedBox(height: 8),
+              Text(_error!,
+                  style: const TextStyle(color: Colors.red, fontSize: 12)),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.pop(context, false),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: _saving ? null : _save,
+          child: _saving
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white),
+                )
+              : const Text('Guardar'),
+        ),
+      ],
+    );
   }
 }
