@@ -371,8 +371,12 @@ class _MaestroDialog extends StatefulWidget {
 class _MaestroDialogState extends State<_MaestroDialog> {
   late final TextEditingController _nombreCtrl;
   late final TextEditingController _apPaternoCtrl;
+  late final TextEditingController _apMaternoCtrl;
   late final TextEditingController _empleadoCtrl;
   late final TextEditingController _especialidadCtrl;
+  late final TextEditingController _emailCtrl;
+  late final TextEditingController _curpCtrl;
+  DateTime? _fechaNacimiento;
   bool _saving = false;
   String? _error;
 
@@ -384,16 +388,25 @@ class _MaestroDialogState extends State<_MaestroDialog> {
     final e = widget.existing;
     _nombreCtrl = TextEditingController(text: e?.nombre ?? '');
     _apPaternoCtrl = TextEditingController(text: e?.apellidoPaterno ?? '');
+    _apMaternoCtrl = TextEditingController(text: e?['apellido_materno'] as String? ?? '');
     _empleadoCtrl = TextEditingController(text: e?.numeroEmpleado ?? '');
     _especialidadCtrl = TextEditingController(text: e?.especialidad ?? '');
+    _emailCtrl = TextEditingController(text: e?.email ?? '');
+    _curpCtrl = TextEditingController(text: e?.curp ?? '');
+    if (e?.fecha_nacimiento != null) {
+      _fechaNacimiento = DateTime.parse(e!.fecha_nacimiento! as String);
+    }
   }
 
   @override
   void dispose() {
     _nombreCtrl.dispose();
     _apPaternoCtrl.dispose();
+    _apMaternoCtrl.dispose();
     _empleadoCtrl.dispose();
     _especialidadCtrl.dispose();
+    _emailCtrl.dispose();
+    _curpCtrl.dispose();
     super.dispose();
   }
 
@@ -406,24 +419,20 @@ class _MaestroDialogState extends State<_MaestroDialog> {
     setState(() { _saving = true; _error = null; });
     try {
       final dio = widget.ref.read(apiClientProvider);
+      final body = <String, dynamic>{
+        'nombre': nombre,
+        'apellido_paterno': _apPaternoCtrl.text.trim(),
+        'apellido_materno': _apMaternoCtrl.text.trim(),
+        'especialidad': _especialidadCtrl.text.trim(),
+        'email': _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
+        'curp': _curpCtrl.text.trim().isEmpty ? null : _curpCtrl.text.trim().toUpperCase(),
+        'fecha_nacimiento': _fechaNacimiento?.toIso8601String().split('T')[0],
+      };
+      
       if (_isEdit) {
-        final body = <String, dynamic>{
-          if (_apPaternoCtrl.text.trim().isNotEmpty)
-            'apellido_paterno': _apPaternoCtrl.text.trim(),
-          if (_especialidadCtrl.text.trim().isNotEmpty)
-            'especialidad': _especialidadCtrl.text.trim(),
-        };
         await dio.patch('/api/v1/teachers/${widget.existing!.id}', data: body);
       } else {
-        final body = <String, dynamic>{
-          'nombre': nombre,
-          if (_apPaternoCtrl.text.trim().isNotEmpty)
-            'apellido_paterno': _apPaternoCtrl.text.trim(),
-          if (_empleadoCtrl.text.trim().isNotEmpty)
-            'numero_empleado': _empleadoCtrl.text.trim(),
-          if (_especialidadCtrl.text.trim().isNotEmpty)
-            'especialidad': _especialidadCtrl.text.trim(),
-        };
+        body['numero_empleado'] = _empleadoCtrl.text.trim();
         await dio.post('/api/v1/teachers/', data: body);
       }
       if (mounted) Navigator.pop(context, true);
@@ -457,13 +466,30 @@ class _MaestroDialogState extends State<_MaestroDialog> {
               },
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: _apPaternoCtrl,
-              textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(
-                labelText: 'Apellido paterno',
-                border: OutlineInputBorder(),
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _apPaternoCtrl,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(
+                      labelText: 'Ap. Paterno',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _apMaternoCtrl,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(
+                      labelText: 'Ap. Materno',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
             if (!_isEdit) ...[
@@ -476,6 +502,47 @@ class _MaestroDialogState extends State<_MaestroDialog> {
               ),
               const SizedBox(height: 12),
             ],
+            TextField(
+              controller: _curpCtrl,
+              textCapitalization: TextCapitalization.characters,
+              decoration: const InputDecoration(
+                labelText: 'CURP',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _emailCtrl,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: 'Correo electrónico',
+                border: OutlineInputBorder(),
+                helperText: 'Se usará para el acceso al sistema',
+              ),
+            ),
+            const SizedBox(height: 12),
+            InkWell(
+              onTap: () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: _fechaNacimiento ?? DateTime(1990),
+                  firstDate: DateTime(1940),
+                  lastDate: DateTime.now(),
+                );
+                if (picked != null) setState(() => _fechaNacimiento = picked);
+              },
+              child: InputDecorator(
+                decoration: const InputDecoration(
+                  labelText: 'Fecha de nacimiento',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.calendar_today),
+                ),
+                child: Text(_fechaNacimiento == null
+                    ? 'Seleccionar fecha'
+                    : '${_fechaNacimiento!.day}/${_fechaNacimiento!.month}/${_fechaNacimiento!.year}'),
+              ),
+            ),
+            const SizedBox(height: 12),
             TextField(
               controller: _especialidadCtrl,
               textCapitalization: TextCapitalization.sentences,

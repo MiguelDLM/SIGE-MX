@@ -10,8 +10,51 @@ from modules.students.models import Student
 from modules.students.schemas import StudentCreate, StudentUpdate
 
 
+from modules.users.models import Role, User, UserRole, UserStatus
+from core.security import hash_password
+
 async def create_student(data: StudentCreate, db: AsyncSession) -> Student:
-    student = Student(**data.model_dump())
+    user_id = data.user_id
+    
+    # Create user if email is provided and no user_id given
+    if data.email and not user_id:
+        # Check if user already exists
+        user_stmt = select(User).where(User.email == data.email)
+        user_res = await db.execute(user_stmt)
+        user = user_res.scalar_one_or_none()
+        
+        if not user:
+            # Default password is CURP or matricula
+            pwd = data.curp or data.matricula
+            user = User(
+                email=data.email,
+                password_hash=hash_password(pwd),
+                nombre=data.nombre,
+                apellido_paterno=data.apellido_paterno,
+                apellido_materno=data.apellido_materno,
+                curp=data.curp,
+                fecha_nacimiento=data.fecha_nacimiento,
+                status=UserStatus.activo,
+            )
+            db.add(user)
+            await db.flush()
+            
+            # Assign 'alumno' role
+            role_stmt = select(Role).where(Role.name == "alumno")
+            role_res = await db.execute(role_stmt)
+            role = role_res.scalar_one_or_none()
+            if not role:
+                role = Role(name="alumno")
+                db.add(role)
+                await db.flush()
+            
+            db.add(UserRole(user_id=user.id, role_id=role.id))
+            user_id = user.id
+
+    student_data = data.model_dump(exclude={"email", "curp", "fecha_nacimiento"})
+    student_data["user_id"] = user_id
+    
+    student = Student(**student_data)
     db.add(student)
     try:
         await db.flush()

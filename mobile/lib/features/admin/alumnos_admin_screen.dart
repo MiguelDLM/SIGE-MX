@@ -147,6 +147,9 @@ class _AlumnoDialogState extends State<_AlumnoDialog> {
   late final TextEditingController _nombreCtrl;
   late final TextEditingController _apPaternoCtrl;
   late final TextEditingController _apMaternoCtrl;
+  late final TextEditingController _emailCtrl;
+  late final TextEditingController _curpCtrl;
+  DateTime? _fechaNacimiento;
   bool _saving = false;
   String? _error;
 
@@ -162,6 +165,11 @@ class _AlumnoDialogState extends State<_AlumnoDialog> {
         TextEditingController(text: e?['apellido_paterno'] as String? ?? '');
     _apMaternoCtrl =
         TextEditingController(text: e?['apellido_materno'] as String? ?? '');
+    _emailCtrl = TextEditingController(text: e?['email'] as String? ?? '');
+    _curpCtrl = TextEditingController(text: e?['curp'] as String? ?? '');
+    if (e?['fecha_nacimiento'] != null) {
+      _fechaNacimiento = DateTime.parse(e!['fecha_nacimiento'] as String);
+    }
   }
 
   @override
@@ -170,6 +178,8 @@ class _AlumnoDialogState extends State<_AlumnoDialog> {
     _nombreCtrl.dispose();
     _apPaternoCtrl.dispose();
     _apMaternoCtrl.dispose();
+    _emailCtrl.dispose();
+    _curpCtrl.dispose();
     super.dispose();
   }
 
@@ -183,24 +193,19 @@ class _AlumnoDialogState extends State<_AlumnoDialog> {
     setState(() { _saving = true; _error = null; });
     try {
       final dio = widget.ref.read(apiClientProvider);
+      final body = <String, dynamic>{
+        'nombre': nombre,
+        'apellido_paterno': _apPaternoCtrl.text.trim(),
+        'apellido_materno': _apMaternoCtrl.text.trim(),
+        'email': _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
+        'curp': _curpCtrl.text.trim().isEmpty ? null : _curpCtrl.text.trim().toUpperCase(),
+        'fecha_nacimiento': _fechaNacimiento?.toIso8601String().split('T')[0],
+      };
+      
       if (_isEdit) {
-        final body = <String, dynamic>{
-          'nombre': nombre,
-          if (_apPaternoCtrl.text.trim().isNotEmpty)
-            'apellido_paterno': _apPaternoCtrl.text.trim(),
-          if (_apMaternoCtrl.text.trim().isNotEmpty)
-            'apellido_materno': _apMaternoCtrl.text.trim(),
-        };
         await dio.patch('/api/v1/students/${widget.existing!['id']}', data: body);
       } else {
-        final body = <String, dynamic>{
-          'matricula': matricula,
-          'nombre': nombre,
-          if (_apPaternoCtrl.text.trim().isNotEmpty)
-            'apellido_paterno': _apPaternoCtrl.text.trim(),
-          if (_apMaternoCtrl.text.trim().isNotEmpty)
-            'apellido_materno': _apMaternoCtrl.text.trim(),
-        };
+        body['matricula'] = matricula;
         await dio.post('/api/v1/students/', data: body);
       }
       if (mounted) Navigator.pop(context, true);
@@ -236,28 +241,78 @@ class _AlumnoDialogState extends State<_AlumnoDialog> {
             TextField(
               controller: _nombreCtrl,
               textCapitalization: TextCapitalization.words,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Nombre(s) *',
-                border: const OutlineInputBorder(),
-                errorText: _isEdit ? null : null,
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _apPaternoCtrl,
-              textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(
-                labelText: 'Apellido paterno',
                 border: OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _apPaternoCtrl,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(
+                      labelText: 'Ap. Paterno',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _apMaternoCtrl,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(
+                      labelText: 'Ap. Materno',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
             TextField(
-              controller: _apMaternoCtrl,
-              textCapitalization: TextCapitalization.words,
+              controller: _curpCtrl,
+              textCapitalization: TextCapitalization.characters,
               decoration: const InputDecoration(
-                labelText: 'Apellido materno',
+                labelText: 'CURP',
                 border: OutlineInputBorder(),
+                hintText: 'ABCD123456...',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _emailCtrl,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: 'Correo electrónico',
+                border: OutlineInputBorder(),
+                hintText: 'usuario@ejemplo.com',
+                helperText: 'Se usará para el acceso al sistema',
+              ),
+            ),
+            const SizedBox(height: 12),
+            InkWell(
+              onTap: () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: _fechaNacimiento ?? DateTime(2005),
+                  firstDate: DateTime(1950),
+                  lastDate: DateTime.now(),
+                );
+                if (picked != null) setState(() => _fechaNacimiento = picked);
+              },
+              child: InputDecorator(
+                decoration: const InputDecoration(
+                  labelText: 'Fecha de nacimiento',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.calendar_today),
+                ),
+                child: Text(_fechaNacimiento == null
+                    ? 'Seleccionar fecha'
+                    : '${_fechaNacimiento!.day}/${_fechaNacimiento!.month}/${_fechaNacimiento!.year}'),
               ),
             ),
             if (_error != null && _isEdit) ...[

@@ -12,6 +12,9 @@ class TeacherCreate(BaseModel):
     nombre: str
     apellido_paterno: Optional[str] = None
     apellido_materno: Optional[str] = None
+    email: Optional[str] = None
+    curp: Optional[str] = None
+    fecha_nacimiento: Optional[date] = None
     fecha_contratacion: Optional[date] = None
     user_id: Optional[uuid.UUID] = None
 
@@ -20,6 +23,9 @@ class TeacherUpdate(BaseModel):
     especialidad: Optional[str] = None
     apellido_paterno: Optional[str] = None
     apellido_materno: Optional[str] = None
+    email: Optional[str] = None
+    curp: Optional[str] = None
+    fecha_nacimiento: Optional[date] = None
     fecha_contratacion: Optional[date] = None
 
 
@@ -29,5 +35,9 @@ class TeacherResponse(BaseModel):
     especialidad: Optional[str] = None
     nombre: str
     apellido_paterno: Optional[str] = None
+    email: Optional[str] = None
+    curp: Optional[str] = None
+    fecha_nacimiento: Optional[date] = None
+    user_id: Optional[uuid.UUID] = None
 
     model_config = {"from_attributes": True}
