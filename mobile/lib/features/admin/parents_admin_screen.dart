@@ -11,8 +11,6 @@ final parentsAdminProvider =
     'role': 'padre',
     if (search.isNotEmpty) 'search': search,
   });
-  // The users endpoint returns a list of (user, roles) tuples or just user objects depending on implementation
-  // Adjusting based on common patterns in this codebase
   return (resp.data['data'] as List).cast<Map<String, dynamic>>();
 });
 
@@ -75,7 +73,7 @@ class _ParentsAdminScreenState extends ConsumerState<ParentsAdminScreen> {
             separatorBuilder: (_, __) => const Divider(height: 1),
             itemBuilder: (_, i) {
               final p = parents[i];
-              final nombre = '${p['nombre'] ?? ''} ${p['apellido_paterno'] ?? ''}'.trim();
+              final nombre = '${p['nombre'] ?? ''} ${p['apellido_paterno'] ?? ''} ${p['apellido_materno'] ?? ''}'.trim();
               return ListTile(
                 leading: const CircleAvatar(child: Icon(Icons.person_outline)),
                 title: Text(nombre),
@@ -103,8 +101,6 @@ class _ParentsAdminScreenState extends ConsumerState<ParentsAdminScreen> {
   }
 
   Future<void> _showForm(BuildContext context, Map<String, dynamic>? existing) async {
-    // This uses the UserFormScreen logic but could be a specialized dialog
-    // For now, let's keep it simple with a dialog for CURP requirement
     final saved = await showDialog<bool>(
       context: context,
       builder: (ctx) => _ParentDialog(existing: existing, ref: ref),
@@ -113,7 +109,6 @@ class _ParentsAdminScreenState extends ConsumerState<ParentsAdminScreen> {
   }
 
   Future<void> _showLinkHijos(BuildContext context, Map<String, dynamic> parent) async {
-    // Reusing logic from the student linking part but initiated from Parent
     await showDialog(
       context: context,
       builder: (ctx) => _LinkHijosDialog(parent: parent, ref: ref),
@@ -133,8 +128,10 @@ class _ParentDialog extends StatefulWidget {
 class _ParentDialogState extends State<_ParentDialog> {
   late final TextEditingController _nombreCtrl;
   late final TextEditingController _apPaternoCtrl;
+  late final TextEditingController _apMaternoCtrl;
   late final TextEditingController _emailCtrl;
   late final TextEditingController _curpCtrl;
+  DateTime? _fechaNacimiento;
   bool _saving = false;
   String? _error;
 
@@ -144,14 +141,19 @@ class _ParentDialogState extends State<_ParentDialog> {
     final e = widget.existing;
     _nombreCtrl = TextEditingController(text: e?['nombre'] ?? '');
     _apPaternoCtrl = TextEditingController(text: e?['apellido_paterno'] ?? '');
+    _apMaternoCtrl = TextEditingController(text: e?['apellido_materno'] ?? '');
     _emailCtrl = TextEditingController(text: e?['email'] ?? '');
     _curpCtrl = TextEditingController(text: e?['curp'] ?? '');
+    if (e?['fecha_nacimiento'] != null) {
+      _fechaNacimiento = DateTime.parse(e!['fecha_nacimiento']);
+    }
   }
 
   @override
   void dispose() {
     _nombreCtrl.dispose();
     _apPaternoCtrl.dispose();
+    _apMaternoCtrl.dispose();
     _emailCtrl.dispose();
     _curpCtrl.dispose();
     super.dispose();
@@ -168,14 +170,17 @@ class _ParentDialogState extends State<_ParentDialog> {
       final body = {
         'nombre': _nombreCtrl.text.trim(),
         'apellido_paterno': _apPaternoCtrl.text.trim(),
+        'apellido_materno': _apMaternoCtrl.text.trim(),
         'email': _emailCtrl.text.trim(),
         'curp': _curpCtrl.text.trim().toUpperCase(),
+        'fecha_nacimiento': _fechaNacimiento?.toIso8601String().split('T')[0],
         'roles': ['padre'],
       };
       if (widget.existing != null) {
         await dio.patch('/api/v1/users/${widget.existing!['id']}', data: body);
       } else {
-        body['password'] = 'SAS12345'; // Default password
+        body['password'] = body['curp'] as String; // Usar CURP como contraseña default
+        body['must_change_password'] = true;
         await dio.post('/api/v1/users/', data: body);
       }
       if (mounted) Navigator.pop(context, true);
@@ -196,11 +201,28 @@ class _ParentDialogState extends State<_ParentDialog> {
           children: [
             TextField(controller: _nombreCtrl, decoration: const InputDecoration(labelText: 'Nombre(s) *', border: OutlineInputBorder())),
             const SizedBox(height: 12),
-            TextField(controller: _apPaternoCtrl, decoration: const InputDecoration(labelText: 'Apellido Paterno', border: OutlineInputBorder())),
+            Row(
+              children: [
+                Expanded(child: TextField(controller: _apPaternoCtrl, decoration: const InputDecoration(labelText: 'Ap. Paterno', border: OutlineInputBorder()))),
+                const SizedBox(width: 8),
+                Expanded(child: TextField(controller: _apMaternoCtrl, decoration: const InputDecoration(labelText: 'Ap. Materno', border: OutlineInputBorder()))),
+              ],
+            ),
             const SizedBox(height: 12),
-            TextField(controller: _emailCtrl, decoration: const InputDecoration(labelText: 'Email *', border: OutlineInputBorder())),
+            TextField(controller: _curpCtrl, decoration: const InputDecoration(labelText: 'CURP *', border: OutlineInputBorder(), hintText: 'ABCD123456...')),
             const SizedBox(height: 12),
-            TextField(controller: _curpCtrl, decoration: const InputDecoration(labelText: 'CURP *', border: OutlineInputBorder())),
+            InkWell(
+              onTap: () async {
+                final d = await showDatePicker(context: context, initialDate: DateTime(1985), firstDate: DateTime(1940), lastDate: DateTime.now());
+                if (d != null) setState(() => _fechaNacimiento = d);
+              },
+              child: InputDecorator(
+                decoration: const InputDecoration(labelText: 'Fecha de nacimiento', border: OutlineInputBorder(), prefixIcon: Icon(Icons.calendar_today)),
+                child: Text(_fechaNacimiento == null ? 'Seleccionar fecha' : '${_fechaNacimiento!.day}/${_fechaNacimiento!.month}/${_fechaNacimiento!.year}'),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(controller: _emailCtrl, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'Email *', border: OutlineInputBorder())),
             if (_error != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_error!, style: const TextStyle(color: Colors.red))),
           ],
         ),
@@ -253,7 +275,7 @@ class _LinkHijosDialogState extends State<_LinkHijosDialog> {
                 itemBuilder: (ctx, i) {
                   final s = _results[i];
                   return ListTile(
-                    title: Text('${s['nombre']} ${s['apellido_paterno'] ?? ''}'),
+                    title: Text('${s['nombre']} ${s['apellido_paterno'] ?? ''} ${s['apellido_materno'] ?? ''}'),
                     subtitle: Text('Mat: ${s['matricula']}'),
                     trailing: IconButton(
                       icon: const Icon(Icons.add_link),
