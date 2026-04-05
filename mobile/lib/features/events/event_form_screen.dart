@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/api/api_client.dart';
 import '../../shared/models/event.dart';
+import '../../shared/widgets/date_time_pickers.dart';
 import 'events_provider.dart';
 
 class EventFormScreen extends ConsumerStatefulWidget {
@@ -17,24 +18,44 @@ class EventFormScreen extends ConsumerStatefulWidget {
 class _EventFormScreenState extends ConsumerState<EventFormScreen> {
   late final TextEditingController _tituloCtrl;
   late final TextEditingController _descCtrl;
-  late final TextEditingController _inicioCtrl;
-  late final TextEditingController _finCtrl;
+  DateTime? _inicio;
+  DateTime? _fin;
   String? _tipo;
   bool _saving = false;
 
   static const _tipos = ['academico', 'cultural', 'deportivo', 'administrativo'];
 
+  static const _tipoLabels = {
+    'academico': 'Académico',
+    'cultural': 'Cultural',
+    'deportivo': 'Deportivo',
+    'administrativo': 'Administrativo',
+  };
+
+  DateTime? _parseDateTime(String? s) {
+    if (s == null || s.isEmpty) return null;
+    try {
+      return DateTime.parse(s);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _fmtDateTime(DateTime dt) =>
+      '${dt.year.toString().padLeft(4, '0')}-'
+      '${dt.month.toString().padLeft(2, '0')}-'
+      '${dt.day.toString().padLeft(2, '0')}T'
+      '${dt.hour.toString().padLeft(2, '0')}:'
+      '${dt.minute.toString().padLeft(2, '0')}:00';
+
   @override
   void initState() {
     super.initState();
     _tituloCtrl = TextEditingController(text: widget.existing?.titulo ?? '');
-    _descCtrl = TextEditingController(text: widget.existing?.descripcion ?? '');
-    _inicioCtrl = TextEditingController(
-      text: widget.existing?.fechaInicio?.substring(0, 16) ?? '',
-    );
-    _finCtrl = TextEditingController(
-      text: widget.existing?.fechaFin?.substring(0, 16) ?? '',
-    );
+    _descCtrl =
+        TextEditingController(text: widget.existing?.descripcion ?? '');
+    _inicio = _parseDateTime(widget.existing?.fechaInicio);
+    _fin = _parseDateTime(widget.existing?.fechaFin);
     _tipo = widget.existing?.tipo;
   }
 
@@ -42,8 +63,6 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
   void dispose() {
     _tituloCtrl.dispose();
     _descCtrl.dispose();
-    _inicioCtrl.dispose();
-    _finCtrl.dispose();
     super.dispose();
   }
 
@@ -62,10 +81,8 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
         'descripcion':
             _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
         'tipo': _tipo,
-        'fecha_inicio':
-            _inicioCtrl.text.trim().isEmpty ? null : _inicioCtrl.text.trim(),
-        'fecha_fin':
-            _finCtrl.text.trim().isEmpty ? null : _finCtrl.text.trim(),
+        'fecha_inicio': _inicio != null ? _fmtDateTime(_inicio!) : null,
+        'fecha_fin': _fin != null ? _fmtDateTime(_fin!) : null,
       };
       if (widget.existing == null) {
         await dio.post('/api/v1/events/', data: body);
@@ -88,7 +105,8 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.existing == null ? 'Nuevo evento' : 'Editar evento'),
+        title:
+            Text(widget.existing == null ? 'Nuevo evento' : 'Editar evento'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -97,6 +115,7 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
           children: [
             TextField(
               controller: _tituloCtrl,
+              textCapitalization: TextCapitalization.sentences,
               decoration: const InputDecoration(
                 labelText: 'Título *',
                 border: OutlineInputBorder(),
@@ -110,7 +129,10 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
                 border: OutlineInputBorder(),
               ),
               items: _tipos
-                  .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                  .map((t) => DropdownMenuItem(
+                        value: t,
+                        child: Text(_tipoLabels[t] ?? t),
+                      ))
                   .toList(),
               onChanged: (v) => setState(() => _tipo = v),
             ),
@@ -118,26 +140,23 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
             TextField(
               controller: _descCtrl,
               maxLines: 3,
+              textCapitalization: TextCapitalization.sentences,
               decoration: const InputDecoration(
                 labelText: 'Descripción',
                 border: OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: _inicioCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Fecha inicio (YYYY-MM-DDTHH:MM)',
-                border: OutlineInputBorder(),
-              ),
+            DateTimePickerField(
+              label: 'Fecha y hora de inicio',
+              value: _inicio,
+              onChanged: (dt) => setState(() => _inicio = dt),
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: _finCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Fecha fin (YYYY-MM-DDTHH:MM)',
-                border: OutlineInputBorder(),
-              ),
+            DateTimePickerField(
+              label: 'Fecha y hora de fin',
+              value: _fin,
+              onChanged: (dt) => setState(() => _fin = dt),
             ),
             const SizedBox(height: 24),
             FilledButton(
@@ -146,7 +165,8 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
                   ? const SizedBox(
                       height: 20,
                       width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child:
+                          CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Text('Guardar'),
             ),

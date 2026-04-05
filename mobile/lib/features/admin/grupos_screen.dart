@@ -38,6 +38,19 @@ class Grupo {
       );
 }
 
+// ---------- Constants ----------
+const _turnos = ['Matutino', 'Vespertino', 'Nocturno'];
+
+const _niveles = ['Preescolar', 'Primaria', 'Secundaria', 'Preparatoria'];
+
+/// Max grado por nivel
+const _maxGradoPorNivel = {
+  'Preescolar': 3,
+  'Primaria': 6,
+  'Secundaria': 3,
+  'Preparatoria': 3,
+};
+
 // ---------- Provider ----------
 final gruposProvider = FutureProvider<List<Grupo>>((ref) async {
   final dio = ref.read(apiClientProvider);
@@ -85,11 +98,13 @@ class AdminGruposScreen extends ConsumerWidget {
             itemBuilder: (_, i) {
               final g = active[i];
               return ListTile(
-                leading:
-                    const CircleAvatar(child: Icon(Icons.group_outlined)),
+                leading: const CircleAvatar(
+                    child: Icon(Icons.group_outlined)),
                 title: Text(g.nombre),
                 subtitle: Text([
                   if (g.nivel != null) g.nivel!,
+                  if (g.grado != null) '${g.grado}°',
+                  if (g.seccion != null) 'Sec. ${g.seccion}',
                   if (g.turno != null) g.turno!,
                 ].join(' · ')),
                 trailing: Row(
@@ -98,16 +113,16 @@ class AdminGruposScreen extends ConsumerWidget {
                     IconButton(
                       icon: const Icon(Icons.people_outline),
                       tooltip: 'Alumnos',
-                      onPressed: () =>
-                          context.push('/admin/grupos/${g.id}/alumnos',
-                              extra: g),
+                      onPressed: () => context.push(
+                          '/admin/grupos/${g.id}/alumnos',
+                          extra: g),
                     ),
                     IconButton(
                       icon: const Icon(Icons.schedule),
                       tooltip: 'Horario',
-                      onPressed: () =>
-                          context.push('/admin/grupos/${g.id}/horario',
-                              extra: g),
+                      onPressed: () => context.push(
+                          '/admin/grupos/${g.id}/horario',
+                          extra: g),
                     ),
                     IconButton(
                       icon: const Icon(Icons.edit_outlined),
@@ -130,91 +145,10 @@ class AdminGruposScreen extends ConsumerWidget {
 
   Future<void> _showForm(
       BuildContext context, WidgetRef ref, Grupo? existing) async {
-    final nombreCtrl =
-        TextEditingController(text: existing?.nombre ?? '');
-    final gradoCtrl =
-        TextEditingController(text: existing?.grado?.toString() ?? '');
-    final seccionCtrl =
-        TextEditingController(text: existing?.seccion ?? '');
-    final nivelCtrl =
-        TextEditingController(text: existing?.nivel ?? '');
-    final turnoCtrl =
-        TextEditingController(text: existing?.turno ?? '');
-
     final saved = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: Text(existing == null ? 'Nuevo grupo' : 'Editar grupo'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nombreCtrl,
-                decoration: const InputDecoration(labelText: 'Nombre *'),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: gradoCtrl,
-                decoration: const InputDecoration(labelText: 'Grado'),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: seccionCtrl,
-                decoration: const InputDecoration(labelText: 'Sección (A, B…)'),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: nivelCtrl,
-                decoration: const InputDecoration(
-                    labelText: 'Nivel (primaria, secundaria…)'),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: turnoCtrl,
-                decoration:
-                    const InputDecoration(labelText: 'Turno (matutino…)'),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final nombre = nombreCtrl.text.trim();
-              if (nombre.isEmpty) return;
-              final dio = ref.read(apiClientProvider);
-              final body = {
-                'nombre': nombre,
-                if (gradoCtrl.text.trim().isNotEmpty)
-                  'grado': int.tryParse(gradoCtrl.text.trim()),
-                if (seccionCtrl.text.trim().isNotEmpty)
-                  'seccion': seccionCtrl.text.trim(),
-                if (nivelCtrl.text.trim().isNotEmpty)
-                  'nivel': nivelCtrl.text.trim(),
-                if (turnoCtrl.text.trim().isNotEmpty)
-                  'turno': turnoCtrl.text.trim(),
-              };
-              try {
-                if (existing == null) {
-                  await dio.post('/api/v1/groups/', data: body);
-                } else {
-                  await dio.patch('/api/v1/groups/${existing.id}', data: body);
-                }
-                Navigator.pop(context, true);
-              } catch (e) {
-                Navigator.pop(context, false);
-              }
-            },
-            child: const Text('Guardar'),
-          ),
-        ],
-      ),
+      builder: (dialogCtx) =>
+          _GrupoDialog(existing: existing, ref: ref),
     );
     if (saved == true) ref.invalidate(gruposProvider);
   }
@@ -223,17 +157,17 @@ class AdminGruposScreen extends ConsumerWidget {
       BuildContext context, WidgetRef ref, Grupo g) async {
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         title: const Text('¿Desactivar grupo?'),
         content: Text('Se desactivará "${g.nombre}".'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(dialogCtx, false),
             child: const Text('Cancelar'),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(dialogCtx, true),
             child: const Text('Desactivar'),
           ),
         ],
@@ -250,5 +184,185 @@ class AdminGruposScreen extends ConsumerWidget {
         }
       }
     }
+  }
+}
+
+// ---------- Dialog as StatefulWidget ----------
+class _GrupoDialog extends StatefulWidget {
+  final Grupo? existing;
+  final WidgetRef ref;
+
+  const _GrupoDialog({required this.ref, this.existing});
+
+  @override
+  State<_GrupoDialog> createState() => _GrupoDialogState();
+}
+
+class _GrupoDialogState extends State<_GrupoDialog> {
+  late final TextEditingController _nombreCtrl;
+  late final TextEditingController _seccionCtrl;
+  String? _nivel;
+  int? _grado;
+  String? _turno;
+  bool _saving = false;
+  String? _error;
+
+  int get _maxGrado => _maxGradoPorNivel[_nivel] ?? 6;
+
+  @override
+  void initState() {
+    super.initState();
+    final g = widget.existing;
+    _nombreCtrl = TextEditingController(text: g?.nombre ?? '');
+    _seccionCtrl = TextEditingController(text: g?.seccion ?? '');
+    _nivel = g?.nivel;
+    _grado = g?.grado;
+    _turno = g?.turno;
+    // Clamp grado if nivel changes
+    if (_grado != null && _grado! > _maxGrado) _grado = null;
+  }
+
+  @override
+  void dispose() {
+    _nombreCtrl.dispose();
+    _seccionCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final nombre = _nombreCtrl.text.trim();
+    if (nombre.isEmpty) {
+      setState(() => _error = 'El nombre es requerido');
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      final dio = widget.ref.read(apiClientProvider);
+      final body = <String, dynamic>{
+        'nombre': nombre,
+        if (_seccionCtrl.text.trim().isNotEmpty)
+          'seccion': _seccionCtrl.text.trim().toUpperCase(),
+        if (_nivel != null) 'nivel': _nivel,
+        if (_grado != null) 'grado': _grado,
+        if (_turno != null) 'turno': _turno,
+      };
+      if (widget.existing == null) {
+        await dio.post('/api/v1/groups/', data: body);
+      } else {
+        await dio.patch('/api/v1/groups/${widget.existing!.id}', data: body);
+      }
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      setState(() => _error = 'Error al guardar: $e');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.existing == null ? 'Nuevo grupo' : 'Editar grupo'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _nombreCtrl,
+              decoration: InputDecoration(
+                labelText: 'Nombre del grupo *',
+                border: const OutlineInputBorder(),
+                hintText: 'ej. 2°A',
+                errorText: _error,
+              ),
+              onChanged: (_) {
+                if (_error != null) setState(() => _error = null);
+              },
+            ),
+            const SizedBox(height: 12),
+            // Nivel
+            DropdownButtonFormField<String?>(
+              value: _nivel,
+              decoration: const InputDecoration(
+                labelText: 'Nivel educativo',
+                border: OutlineInputBorder(),
+              ),
+              items: [
+                const DropdownMenuItem<String?>(value: null, child: Text('—')),
+                ..._niveles.map((n) =>
+                    DropdownMenuItem<String?>(value: n, child: Text(n))),
+              ],
+              onChanged: (v) => setState(() {
+                _nivel = v;
+                _grado = null; // reset grado when nivel changes
+              }),
+            ),
+            const SizedBox(height: 12),
+            // Grado (dinámico según nivel)
+            DropdownButtonFormField<int?>(
+              value: _grado,
+              decoration: const InputDecoration(
+                labelText: 'Grado',
+                border: OutlineInputBorder(),
+              ),
+              items: [
+                const DropdownMenuItem<int?>(value: null, child: Text('—')),
+                for (int g = 1; g <= _maxGrado; g++)
+                  DropdownMenuItem<int?>(value: g, child: Text('$g°')),
+              ],
+              onChanged: (v) => setState(() => _grado = v),
+            ),
+            const SizedBox(height: 12),
+            // Sección
+            TextField(
+              controller: _seccionCtrl,
+              textCapitalization: TextCapitalization.characters,
+              maxLength: 5,
+              decoration: const InputDecoration(
+                labelText: 'Sección',
+                border: OutlineInputBorder(),
+                hintText: 'A, B, C…',
+                counterText: '',
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Turno
+            DropdownButtonFormField<String?>(
+              value: _turno,
+              decoration: const InputDecoration(
+                labelText: 'Turno',
+                border: OutlineInputBorder(),
+              ),
+              items: [
+                const DropdownMenuItem<String?>(value: null, child: Text('—')),
+                ..._turnos.map((t) =>
+                    DropdownMenuItem<String?>(value: t, child: Text(t))),
+              ],
+              onChanged: (v) => setState(() => _turno = v),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.pop(context, false),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: _saving ? null : _save,
+          child: _saving
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white),
+                )
+              : const Text('Guardar'),
+        ),
+      ],
+    );
   }
 }

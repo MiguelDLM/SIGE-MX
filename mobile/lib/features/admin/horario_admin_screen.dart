@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/api_client.dart';
+import '../../shared/widgets/date_time_pickers.dart';
 import '../horario/horario_screen.dart';
 import 'grupos_screen.dart';
 import 'materias_screen.dart';
@@ -111,14 +112,14 @@ class AdminHorarioScreen extends ConsumerWidget {
     String? selectedMateria;
     String? selectedMaestro;
     int selectedDia = 0;
-    final inicioCtrl = TextEditingController(text: '08:00');
-    final finCtrl = TextEditingController(text: '09:00');
+    TimeOfDay? horaInicio = const TimeOfDay(hour: 8, minute: 0);
+    TimeOfDay? horaFin = const TimeOfDay(hour: 9, minute: 0);
     final aulaCtrl = TextEditingController();
 
     final saved = await showDialog<bool>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setState) => AlertDialog(
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (dialogCtx, setState) => AlertDialog(
           title: const Text('Agregar clase'),
           content: SingleChildScrollView(
             child: Column(
@@ -170,18 +171,18 @@ class AdminHorarioScreen extends ConsumerWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: TextField(
-                        controller: inicioCtrl,
-                        decoration:
-                            const InputDecoration(labelText: 'Inicio (HH:MM)'),
+                      child: TimePickerField(
+                        label: 'Inicio',
+                        value: horaInicio,
+                        onChanged: (t) => setState(() => horaInicio = t),
                       ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: TextField(
-                        controller: finCtrl,
-                        decoration:
-                            const InputDecoration(labelText: 'Fin (HH:MM)'),
+                      child: TimePickerField(
+                        label: 'Fin',
+                        value: horaFin,
+                        onChanged: (t) => setState(() => horaFin = t),
                       ),
                     ),
                   ],
@@ -196,13 +197,16 @@ class AdminHorarioScreen extends ConsumerWidget {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
+              onPressed: () => Navigator.pop(dialogCtx, false),
               child: const Text('Cancelar'),
             ),
             FilledButton(
-              onPressed: (selectedMateria == null || selectedMaestro == null)
+              onPressed:
+                  (selectedMateria == null || selectedMaestro == null || horaInicio == null || horaFin == null)
                   ? null
                   : () async {
+                      String _fmt(TimeOfDay t) =>
+                          '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}:00';
                       try {
                         await ref.read(apiClientProvider).post(
                           '/api/v1/horarios/',
@@ -211,15 +215,15 @@ class AdminHorarioScreen extends ConsumerWidget {
                             'subject_id': selectedMateria,
                             'teacher_id': selectedMaestro,
                             'dia_semana': selectedDia,
-                            'hora_inicio': inicioCtrl.text.trim(),
-                            'hora_fin': finCtrl.text.trim(),
+                            'hora_inicio': _fmt(horaInicio!),
+                            'hora_fin': _fmt(horaFin!),
                             if (aulaCtrl.text.trim().isNotEmpty)
                               'aula': aulaCtrl.text.trim(),
                           },
                         );
-                        Navigator.pop(ctx, true);
+                        Navigator.pop(dialogCtx, true);
                       } catch (e) {
-                        Navigator.pop(ctx, false);
+                        Navigator.pop(dialogCtx, false);
                       }
                     },
               child: const Text('Guardar'),

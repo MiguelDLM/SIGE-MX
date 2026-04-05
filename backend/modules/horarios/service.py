@@ -81,18 +81,29 @@ async def mi_horario(user_id: uuid.UUID, roles: list[str], db: AsyncSession) -> 
         if teacher:
             return await list_by_teacher(teacher.id, db)
 
-    if "alumno" in roles:
+    if "alumno" in roles or "tutor" in roles:
         student_result = await db.execute(
             select(Student).where(Student.user_id == user_id)
         )
         student = student_result.scalar_one_or_none()
         if student:
+            # A student can be in multiple groups (e.g., repeating a grade)
             gs_result = await db.execute(
                 select(GroupStudent).where(GroupStudent.student_id == student.id)
             )
-            gs = gs_result.scalar_one_or_none()
-            if gs:
-                return await list_by_group(gs.group_id, db)
+            all_entries: list[HorarioResponse] = []
+            for gs in gs_result.scalars():
+                entries = await list_by_group(gs.group_id, db)
+                all_entries.extend(entries)
+            # Sort by day then time, deduplicate by id
+            seen: set[str] = set()
+            unique: list[HorarioResponse] = []
+            for e in sorted(all_entries, key=lambda x: (x.dia_semana, str(x.hora_inicio))):
+                key = str(e.id)
+                if key not in seen:
+                    seen.add(key)
+                    unique.append(e)
+            return unique
 
     return []
 

@@ -201,17 +201,17 @@ class GrupoDetailScreen extends ConsumerWidget {
       BuildContext context, WidgetRef ref, AlumnoEnGrupo a) async {
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         title: const Text('¿Quitar alumno?'),
         content: Text('Se quitará a "${a.displayName}" del grupo.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(dialogCtx, false),
             child: const Text('Cancelar'),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(dialogCtx, true),
             child: const Text('Quitar'),
           ),
         ],

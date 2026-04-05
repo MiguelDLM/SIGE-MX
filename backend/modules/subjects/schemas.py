@@ -9,12 +9,14 @@ class SubjectCreate(BaseModel):
     nombre: Optional[str] = None
     clave: Optional[str] = None
     horas_semana: Optional[int] = None
+    grado: Optional[int] = None
 
 
 class SubjectUpdate(BaseModel):
     nombre: Optional[str] = None
     clave: Optional[str] = None
     horas_semana: Optional[int] = None
+    grado: Optional[int] = None
 
 
 class SubjectResponse(BaseModel):
@@ -22,6 +24,7 @@ class SubjectResponse(BaseModel):
     nombre: Optional[str] = None
     clave: Optional[str] = None
     horas_semana: Optional[int] = None
+    grado: Optional[int] = None
     activo: bool = True
 
     model_config = {"from_attributes": True}

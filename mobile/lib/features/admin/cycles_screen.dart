@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/api_client.dart';
 import '../../shared/models/academic_cycle.dart';
+import '../../shared/widgets/date_time_pickers.dart';
 import '../../shared/widgets/loading_indicator.dart';
 import 'cycles_provider.dart';
 
@@ -86,25 +87,37 @@ class _CycleDialog extends ConsumerStatefulWidget {
 
 class _CycleDialogState extends ConsumerState<_CycleDialog> {
   late final TextEditingController _nombreCtrl;
-  late final TextEditingController _inicioCtrl;
-  late final TextEditingController _finCtrl;
+  DateTime? _inicio;
+  DateTime? _fin;
   late bool _activo;
   bool _saving = false;
+
+  String _fmtDate(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-'
+      '${d.month.toString().padLeft(2, '0')}-'
+      '${d.day.toString().padLeft(2, '0')}';
+
+  DateTime? _parseDate(String? s) {
+    if (s == null || s.isEmpty) return null;
+    try {
+      return DateTime.parse(s);
+    } catch (_) {
+      return null;
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     _nombreCtrl = TextEditingController(text: widget.existing?.nombre ?? '');
-    _inicioCtrl = TextEditingController(text: widget.existing?.fechaInicio ?? '');
-    _finCtrl = TextEditingController(text: widget.existing?.fechaFin ?? '');
+    _inicio = _parseDate(widget.existing?.fechaInicio);
+    _fin = _parseDate(widget.existing?.fechaFin);
     _activo = widget.existing?.activo ?? false;
   }
 
   @override
   void dispose() {
     _nombreCtrl.dispose();
-    _inicioCtrl.dispose();
-    _finCtrl.dispose();
     super.dispose();
   }
 
@@ -113,15 +126,18 @@ class _CycleDialogState extends ConsumerState<_CycleDialog> {
     try {
       final dio = ref.read(apiClientProvider);
       final body = {
-        'nombre': _nombreCtrl.text.trim().isEmpty ? null : _nombreCtrl.text.trim(),
-        'fecha_inicio': _inicioCtrl.text.trim().isEmpty ? null : _inicioCtrl.text.trim(),
-        'fecha_fin': _finCtrl.text.trim().isEmpty ? null : _finCtrl.text.trim(),
+        'nombre': _nombreCtrl.text.trim().isEmpty
+            ? null
+            : _nombreCtrl.text.trim(),
+        'fecha_inicio': _inicio != null ? _fmtDate(_inicio!) : null,
+        'fecha_fin': _fin != null ? _fmtDate(_fin!) : null,
         'activo': _activo,
       };
       if (widget.existing == null) {
         await dio.post('/api/v1/academic-cycles/', data: body);
       } else {
-        await dio.patch('/api/v1/academic-cycles/${widget.existing!.id}', data: body);
+        await dio.patch(
+            '/api/v1/academic-cycles/${widget.existing!.id}', data: body);
       }
       ref.invalidate(cyclesProvider);
       if (mounted) Navigator.of(context).pop();
@@ -151,20 +167,17 @@ class _CycleDialogState extends ConsumerState<_CycleDialog> {
               ),
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: _inicioCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Fecha inicio (YYYY-MM-DD)',
-                border: OutlineInputBorder(),
-              ),
+            DatePickerField(
+              label: 'Fecha inicio',
+              value: _inicio,
+              onChanged: (d) => setState(() => _inicio = d),
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: _finCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Fecha fin (YYYY-MM-DD)',
-                border: OutlineInputBorder(),
-              ),
+            DatePickerField(
+              label: 'Fecha fin',
+              value: _fin,
+              firstDate: _inicio,
+              onChanged: (d) => setState(() => _fin = d),
             ),
             const SizedBox(height: 8),
             SwitchListTile(
