@@ -27,11 +27,13 @@ class UsersAdminScreen extends ConsumerWidget {
           if (users.isEmpty) {
             return const Center(child: Text('Sin usuarios registrados'));
           }
-          return ListView.builder(
+          return ListView.separated(
             itemCount: users.length,
+            separatorBuilder: (_, __) => const Divider(height: 1),
             itemBuilder: (_, i) => _UserTile(
               user: users[i],
-              onDeactivate: () => _deactivate(context, ref, users[i]),
+              onResetPassword: () => _resetPassword(context, ref, users[i]),
+              onDelete: () => _confirmDelete(context, ref, users[i]),
             ),
           );
         },
@@ -39,61 +41,102 @@ class UsersAdminScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _deactivate(
-    BuildContext context,
-    WidgetRef ref,
-    UserSummary user,
-  ) async {
-    final confirmed = await showDialog<bool>(
+  Future<void> _resetPassword(BuildContext context, WidgetRef ref, UserSummary user) async {
+    final ok = await showDialog<bool>(
       context: context,
-      builder: (dialogCtx) => AlertDialog(
-        title: const Text('Desactivar usuario'),
-        content: Text('¿Desactivar a ${user.nombreCompleto}?'),
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reiniciar contraseña'),
+        content: Text('La contraseña de "${user.nombreCompleto}" volverá a su valor predeterminado (CURP o Matrícula).'),
         actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Reiniciar')),
+        ],
+      ),
+    );
+    if (ok == true) {
+      try {
+        final dio = ref.read(apiClientProvider);
+        final resp = await dio.post('/api/v1/users/${user.id}/reset-password');
+        final newPwd = resp.data['data']['default_password'];
+        if (context.mounted) {
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('Éxito'),
+              content: Text('Nueva contraseña: $newPwd'),
+              actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Entendido'))],
+            ),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+  }
+
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref, UserSummary user) async {
+    final action = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Gestionar acceso'),
+        content: Text('Usuario: ${user.nombreCompleto}'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
           TextButton(
-            onPressed: () => Navigator.pop(dialogCtx, false),
-            child: const Text('Cancelar'),
+            onPressed: () => Navigator.pop(ctx, 'deactivate'),
+            child: const Text('Inactivar', style: TextStyle(color: Colors.orange)),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(dialogCtx, true),
+            onPressed: () => Navigator.pop(ctx, 'permanent'),
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Desactivar'),
+            child: const Text('Eliminar Permanente'),
           ),
         ],
       ),
     );
-    if (confirmed == true && context.mounted) {
-      try {
-        final dio = ref.read(apiClientProvider);
+
+    if (action == null) return;
+
+    try {
+      final dio = ref.read(apiClientProvider);
+      if (action == 'deactivate') {
         await dio.delete('/api/v1/users/${user.id}');
-        ref.invalidate(usersAdminProvider);
-      } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text('Error: $e')));
-        }
+      } else {
+        await dio.delete('/api/v1/users/${user.id}/permanent');
       }
+      ref.invalidate(usersAdminProvider);
+    } catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 }
 
 class _UserTile extends StatelessWidget {
   final UserSummary user;
-  final VoidCallback onDeactivate;
-  const _UserTile({required this.user, required this.onDeactivate});
+  final VoidCallback onResetPassword;
+  final VoidCallback onDelete;
+  const _UserTile({required this.user, required this.onResetPassword, required this.onDelete});
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: CircleAvatar(
-        child: Text(user.nombre?[0].toUpperCase() ?? '?'),
-      ),
+      leading: CircleAvatar(child: Text(user.nombre?[0].toUpperCase() ?? '?')),
       title: Text(user.nombreCompleto),
       subtitle: Text(user.roles.join(', ')),
-      trailing: IconButton(
-        icon: const Icon(Icons.person_off_outlined, color: Colors.red),
-        tooltip: 'Desactivar',
-        onPressed: onDeactivate,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.lock_reset, color: Colors.blue),
+            tooltip: 'Reiniciar contraseña',
+            onPressed: onResetPassword,
+          ),
+          IconButton(
+            icon: const Icon(Icons.person_off_outlined, color: Colors.red),
+            tooltip: 'Inactivar/Eliminar',
+            onPressed: onDelete,
+          ),
+        ],
       ),
     );
   }
