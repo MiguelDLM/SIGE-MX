@@ -108,9 +108,24 @@ class _AlumnosAdminScreenState extends ConsumerState<AlumnosAdminScreen> {
                 ),
                 title: Text(nombre),
                 subtitle: Text('Mat: $matricula • ${status.toUpperCase()}'),
-                trailing: IconButton(
-                  icon: const Icon(Icons.edit_outlined),
-                  onPressed: () => _showForm(context, a),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.family_restroom_outlined),
+                      tooltip: 'Padres vinculados',
+                      onPressed: () => _showParentsDialog(context, a),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.edit_outlined),
+                      onPressed: () => _showForm(context, a),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                      tooltip: 'Borrar/Inactivar',
+                      onPressed: () => _confirmDelete(context, a),
+                    ),
+                  ],
                 ),
               );
             },
@@ -120,15 +135,236 @@ class _AlumnosAdminScreenState extends ConsumerState<AlumnosAdminScreen> {
     );
   }
 
+  Future<void> _confirmDelete(
+      BuildContext context, Map<String, dynamic> student) async {
+    final action = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Qué deseas hacer?'),
+        content: Text('Expediente de "${student['nombre']}".'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'deactivate'),
+            child: const Text('Inactivar', style: TextStyle(color: Colors.orange)),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, 'permanent'),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Eliminar Permanente'),
+          ),
+        ],
+      ),
+    );
+
+    if (action == null) return;
+
+    try {
+      final dio = ref.read(apiClientProvider);
+      if (action == 'deactivate') {
+        await dio.delete('/api/v1/students/${student['id']}');
+      } else {
+        await dio.delete('/api/v1/students/${student['id']}/permanent');
+      }
+      ref.invalidate(alumnosAdminProvider(_search));
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+  }
+
+  Future<void> _showParentsDialog(
+      BuildContext context, Map<String, dynamic> student) async {
+    await showDialog(
+      context: context,
+      builder: (ctx) => _StudentParentsDialog(student: student, ref: ref),
+    );
+  }
+
   Future<void> _showForm(BuildContext context, Map<String, dynamic>? existing) async {
     final saved = await showDialog<bool>(
       context: context,
-      builder: (ctx) => _AlumnoDialog(existing: existing, ref: ref),
+      builder: (dialogCtx) => _AlumnoDialog(existing: existing, ref: ref),
     );
     if (saved == true) ref.invalidate(alumnosAdminProvider(_search));
   }
 }
 
+class _StudentParentsDialog extends StatefulWidget {
+  final Map<String, dynamic> student;
+  final WidgetRef ref;
+  const _StudentParentsDialog({required this.student, required this.ref});
+
+  @override
+  State<_StudentParentsDialog> createState() => _StudentParentsDialogState();
+}
+
+class _StudentParentsDialogState extends State<_StudentParentsDialog> {
+  List<Map<String, dynamic>> _parents = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadParents();
+  }
+
+  Future<void> _loadParents() async {
+    try {
+      final dio = widget.ref.read(apiClientProvider);
+      final resp = await dio.get('/api/v1/students/${widget.student['id']}/parents');
+      if (mounted) {
+        setState(() {
+          _parents = (resp.data['data'] as List).cast<Map<String, dynamic>>();
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Padres de ${widget.student['nombre']}'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: _loading
+            ? const SizedBox(height: 100, child: Center(child: CircularProgressIndicator()))
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_parents.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Text('Sin padres vinculados'),
+                    )
+                  else
+                    Flexible(
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: _parents.length,
+                        itemBuilder: (ctx, i) {
+                          final p = _parents[i];
+                          return ListTile(
+                            title: Text(p['nombre'] ?? 'Sin nombre'),
+                            subtitle: Text('${p['email'] ?? ''}\n${p['parentesco'] ?? ''}'),
+                            isThreeLine: true,
+                          );
+                        },
+                      ),
+                    ),
+                  const Divider(),
+                  ElevatedButton.icon(
+                    onPressed: () => _showLinkParentSearch(context),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Vincular nuevo padre'),
+                  ),
+                ],
+              ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cerrar')),
+      ],
+    );
+  }
+
+  Future<void> _showLinkParentSearch(BuildContext context) async {
+    final searchCtrl = TextEditingController();
+    final results = ValueNotifier<List<Map<String, dynamic>>>([]);
+    String? selectedUserId;
+    String parentesco = 'Padre/Madre';
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          title: const Text('Vincular usuario como padre'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: searchCtrl,
+                decoration: InputDecoration(
+                  labelText: 'Buscar usuario por nombre/email',
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.search),
+                    onPressed: () async {
+                      try {
+                        final dio = widget.ref.read(apiClientProvider);
+                        final resp = await dio.get('/api/v1/users/',
+                            queryParameters: {'search': searchCtrl.text.trim()});
+                        final list = (resp.data['data'] as List).cast<Map<String, dynamic>>();
+                        results.value = list;
+                      } catch (_) {}
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: parentesco,
+                decoration: const InputDecoration(labelText: 'Parentesco'),
+                items: ['Padre/Madre', 'Tutor', 'Abuelo/a', 'Otro']
+                    .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                    .toList(),
+                onChanged: (v) => setState(() => parentesco = v!),
+              ),
+              const Divider(),
+              ValueListenableBuilder<List<Map<String, dynamic>>>(
+                valueListenable: results,
+                builder: (_, list, __) {
+                  if (list.isEmpty) return const SizedBox.shrink();
+                  return SizedBox(
+                    height: 200,
+                    child: ListView.builder(
+                      itemCount: list.length,
+                      itemBuilder: (_, i) {
+                        final u = list[i];
+                        final uId = u['id'] as String;
+                        return RadioListTile<String>(
+                          title: Text(u['nombre'] ?? ''),
+                          subtitle: Text(u['email'] ?? ''),
+                          value: uId,
+                          groupValue: selectedUserId,
+                          onChanged: (v) => setState(() => selectedUserId = v),
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+            FilledButton(
+              onPressed: selectedUserId == null
+                  ? null
+                  : () async {
+                      try {
+                        final dio = widget.ref.read(apiClientProvider);
+                        await dio.post('/api/v1/students/${widget.student['id']}/parents',
+                            data: {'user_id': selectedUserId, 'parentesco': parentesco});
+                        Navigator.pop(ctx);
+                        _loadParents();
+                      } catch (e) {
+                        ScaffoldMessenger.of(context)
+                            .showSnackBar(SnackBar(content: Text('Error: $e')));
+                      }
+                    },
+              child: const Text('Vincular'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------- Dialog ----------
 class _AlumnoDialog extends StatefulWidget {
   final Map<String, dynamic>? existing;
   final WidgetRef ref;

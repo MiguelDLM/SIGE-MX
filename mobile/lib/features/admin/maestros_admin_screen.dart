@@ -124,6 +124,10 @@ class MaestrosAdminScreen extends ConsumerWidget {
                       icon: const Icon(Icons.edit_outlined),
                       onPressed: () => _showForm(context, ref, t),
                     ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                      onPressed: () => _confirmDelete(context, ref, t),
+                    ),
                   ],
                 ),
               );
@@ -132,6 +136,33 @@ class MaestrosAdminScreen extends ConsumerWidget {
         },
       ),
     );
+  }
+
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref, TeacherModel teacher) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Eliminar permanente?'),
+        content: Text('Se eliminará al docente "${teacher.displayName}" y todos sus registros.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      try {
+        final dio = ref.read(apiClientProvider);
+        await dio.delete('/api/v1/teachers/${teacher.id}');
+        ref.invalidate(maestrosAdminProvider);
+      } catch (e) {
+        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
   }
 
   Future<void> _showAssignmentForm(
