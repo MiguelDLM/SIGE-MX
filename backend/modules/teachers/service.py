@@ -90,8 +90,45 @@ async def update_teacher(
     teacher_id: uuid.UUID, data: TeacherUpdate, db: AsyncSession
 ) -> Teacher:
     teacher = await get_teacher_by_id(teacher_id, db)
-    for field, value in data.model_dump(exclude_unset=True).items():
+
+    # If email is being set and no user_id yet, create/link a user account
+    update_data = data.model_dump(exclude_unset=True)
+    if "email" in update_data and update_data["email"] and not teacher.user_id and "user_id" not in update_data:
+        email = update_data["email"]
+        user_stmt = select(User).where(User.email == email)
+        user_res = await db.execute(user_stmt)
+        user = user_res.scalar_one_or_none()
+        if not user:
+            raw_pwd = (teacher.curp or teacher.numero_empleado or "SAS12345").strip().upper()
+            user = User(
+                email=email,
+                password_hash=hash_password(raw_pwd),
+                nombre=teacher.nombre,
+                apellido_paterno=teacher.apellido_paterno,
+                apellido_materno=teacher.apellido_materno,
+                status=UserStatus.activo,
+                must_change_password=True,
+            )
+            db.add(user)
+            await db.flush()
+            role_stmt = select(Role).where(Role.name == "docente")
+            role_res = await db.execute(role_stmt)
+            role = role_res.scalar_one_or_none()
+            if not role:
+                role = Role(name="docente")
+                db.add(role)
+                await db.flush()
+            db.add(UserRole(user_id=user.id, role_id=role.id))
+        update_data["user_id"] = user.id
+
+    for field, value in update_data.items():
         setattr(teacher, field, value)
     await db.commit()
     await db.refresh(teacher)
     return teacher
+
+
+async def delete_teacher(teacher_id: uuid.UUID, db: AsyncSession) -> None:
+    teacher = await get_teacher_by_id(teacher_id, db)
+    await db.delete(teacher)
+    await db.commit()

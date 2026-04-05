@@ -15,6 +15,8 @@ class TeacherModel {
   final String? email;
   final String? curp;
   final String? fechaNacimiento;
+  /// If null, the teacher has no login account linked — they can't sign in.
+  final String? userId;
 
   const TeacherModel({
     required this.id,
@@ -26,6 +28,7 @@ class TeacherModel {
     this.email,
     this.curp,
     this.fechaNacimiento,
+    this.userId,
   });
 
   factory TeacherModel.fromJson(Map<String, dynamic> j) => TeacherModel(
@@ -38,7 +41,10 @@ class TeacherModel {
         email: j['email'] as String?,
         curp: j['curp'] as String?,
         fechaNacimiento: j['fecha_nacimiento'] as String?,
+        userId: j['user_id'] as String?,
       );
+
+  bool get hasAccount => userId != null;
 
   String get displayName =>
       [nombre, apellidoPaterno, apellidoMaterno].where((s) => s != null && s!.isNotEmpty).join(' ');
@@ -100,12 +106,21 @@ class MaestrosAdminScreen extends ConsumerWidget {
               final t = teachers[i];
               return ListTile(
                 leading: CircleAvatar(
-                  child: Text(t.nombre.isNotEmpty ? t.nombre[0].toUpperCase() : '?'),
+                  backgroundColor: t.hasAccount
+                      ? null
+                      : Colors.orange.withOpacity(0.15),
+                  child: Text(
+                    t.nombre.isNotEmpty ? t.nombre[0].toUpperCase() : '?',
+                    style: TextStyle(
+                        color: t.hasAccount ? null : Colors.orange),
+                  ),
                 ),
                 title: Text(t.displayName),
                 subtitle: Text([
                   if (t.especialidad != null) t.especialidad!,
                   if (t.numeroEmpleado != null) 'Emp: ${t.numeroEmpleado}',
+                  if (!t.hasAccount) '⚠ Sin cuenta de acceso',
+                  if (t.email != null && t.hasAccount) t.email!,
                 ].join(' · ')),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -553,10 +568,25 @@ class _MaestroDialogState extends State<_MaestroDialog> {
             TextField(
               controller: _emailCtrl,
               keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Correo electrónico',
-                border: OutlineInputBorder(),
-                helperText: 'Se usará para el acceso al sistema',
+                border: const OutlineInputBorder(),
+                helperText: _isEdit && widget.existing?.hasAccount == true
+                    ? 'Cuenta de acceso ya vinculada'
+                    : 'Requerido para que el maestro pueda iniciar sesión',
+                helperStyle: TextStyle(
+                  color: _isEdit && widget.existing?.hasAccount == true
+                      ? Colors.green
+                      : Colors.orange,
+                ),
+                prefixIcon: Icon(
+                  _isEdit && widget.existing?.hasAccount == true
+                      ? Icons.verified_outlined
+                      : Icons.person_add_outlined,
+                  color: _isEdit && widget.existing?.hasAccount == true
+                      ? Colors.green
+                      : Colors.orange,
+                ),
               ),
             ),
             const SizedBox(height: 12),

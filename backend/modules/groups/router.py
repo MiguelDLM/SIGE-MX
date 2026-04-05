@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Query, status  # noqa: F401
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
-from core.security import require_roles
+from core.security import get_current_user, require_roles
 from modules.groups import service
 from modules.groups.schemas import (
     AssignStudentRequest,
@@ -19,6 +19,19 @@ from modules.groups.schemas import (
 
 router = APIRouter(prefix="/api/v1/groups", tags=["groups"])
 _admin = ["directivo", "control_escolar"]
+
+
+@router.get("/mis-grupos")
+async def mis_grupos(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Returns all groups assigned to the currently authenticated teacher.
+    Resolves user_id → Teacher → GroupTeacher, supporting multiple groups per teacher."""
+    groups = await service.list_groups_by_user_id(
+        uuid.UUID(current_user["user_id"]), db
+    )
+    return {"data": [GroupResponse.model_validate(g) for g in groups]}
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)

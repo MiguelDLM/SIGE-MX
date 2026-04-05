@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
-from core.security import require_roles
+from core.security import get_current_user, require_roles
 from modules.teachers import service
 from modules.teachers.schemas import TeacherCreate, TeacherResponse, TeacherUpdate
 
@@ -20,6 +20,28 @@ async def create_teacher(
     _: dict = Depends(require_roles(_admin)),
 ):
     teacher = await service.create_teacher(data, db)
+    return {"data": TeacherResponse.model_validate(teacher)}
+
+
+@router.get("/mi-perfil")
+async def mi_perfil(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Returns the teacher profile linked to the currently authenticated user."""
+    from sqlalchemy import select
+    from modules.teachers.models import Teacher
+    result = await db.execute(
+        select(Teacher).where(Teacher.user_id == uuid.UUID(current_user["user_id"]))
+    )
+    teacher = result.scalar_one_or_none()
+    if not teacher:
+        from core.exceptions import BusinessError
+        raise BusinessError(
+            "NO_TEACHER_PROFILE",
+            "No tienes un perfil de docente vinculado a tu cuenta",
+            status_code=404,
+        )
     return {"data": TeacherResponse.model_validate(teacher)}
 
 
@@ -51,3 +73,12 @@ async def update_teacher(
 ):
     teacher = await service.update_teacher(teacher_id, data, db)
     return {"data": TeacherResponse.model_validate(teacher)}
+
+
+@router.delete("/{teacher_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_teacher(
+    teacher_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_roles(_admin)),
+):
+    await service.delete_teacher(teacher_id, db)

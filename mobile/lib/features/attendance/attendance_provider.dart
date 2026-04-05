@@ -6,16 +6,15 @@ import '../../core/auth/auth_state.dart';
 import '../../shared/models/group.dart';
 import '../../shared/models/student.dart';
 
-// Groups for the current docente
+// Groups for the current docente.
+// Uses /mis-grupos which resolves user_id → Teacher → GroupTeacher correctly,
+// supporting teachers assigned to multiple groups.
 final teacherGroupsProvider = FutureProvider<List<Group>>((ref) async {
   final authAsync = ref.watch(authNotifierProvider);
   final auth = authAsync.valueOrNull;
   if (auth is! AuthAuthenticated) return [];
   final dio = ref.read(apiClientProvider);
-  final resp = await dio.get(
-    '/api/v1/groups/',
-    queryParameters: {'teacher_id': auth.userId},
-  );
+  final resp = await dio.get('/api/v1/groups/mis-grupos');
   return (resp.data['data'] as List)
       .map((j) => Group.fromJson(j as Map<String, dynamic>))
       .toList();

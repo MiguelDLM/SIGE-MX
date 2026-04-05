@@ -49,6 +49,24 @@ async def list_groups_by_teacher(
     return list(result.scalars())
 
 
+async def list_groups_by_user_id(
+    user_id: uuid.UUID, db: AsyncSession
+) -> list[Group]:
+    """Groups assigned to the teacher whose User.id matches user_id (JWT sub)."""
+    from modules.teachers.models import Teacher
+    stmt = (
+        select(Group)
+        .join(GroupTeacher, GroupTeacher.group_id == Group.id)
+        .join(Teacher, Teacher.id == GroupTeacher.teacher_id)
+        .where(Teacher.user_id == user_id)
+        .where(Group.activo == True)  # noqa: E712
+        .order_by(Group.grado, Group.nombre)
+    )
+    result = await db.execute(stmt)
+    # A teacher can teach in multiple groups — use .scalars() not .scalar_one_or_none()
+    return list(result.scalars().unique())
+
+
 async def list_students_by_group(
     group_id: uuid.UUID, db: AsyncSession
 ) -> list:
@@ -95,6 +113,17 @@ async def assign_teacher(
     group_id: uuid.UUID, data: AssignTeacherRequest, db: AsyncSession
 ) -> dict:
     await get_group_by_id(group_id, db)
+    # Check if already assigned
+    existing = await db.execute(
+        select(GroupTeacher).where(
+            GroupTeacher.group_id == group_id,
+            GroupTeacher.teacher_id == data.teacher_id,
+            GroupTeacher.subject_id == data.subject_id,
+        )
+    )
+    if existing.scalar_one_or_none():
+        return {"assigned": True, "already_existed": True}
+
     db.add(
         GroupTeacher(
             group_id=group_id,
