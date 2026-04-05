@@ -46,37 +46,72 @@ class _HomeBody extends StatelessWidget {
       children: [
         _WelcomeCard(role: auth.primaryRole),
         const SizedBox(height: 16),
-        ..._cardsForRole(auth.primaryRole),
+        ..._cardsForRole(context, auth.primaryRole),
       ],
     );
   }
 
-  List<Widget> _cardsForRole(String role) {
-    switch (role) {
-      case 'docente':
-        return [
-          _InfoCard(Icons.checklist, 'Asistencia', 'Toma lista de tus grupos'),
-          _InfoCard(Icons.grade, 'Calificaciones', 'Captura evaluaciones'),
-        ];
-      case 'padre':
-      case 'alumno':
-        return [
-          _InfoCard(Icons.checklist, 'Asistencia', 'Consulta el registro'),
-          _InfoCard(Icons.grade, 'Calificaciones', 'Consulta tus materias'),
-        ];
-      case 'directivo':
-        return [
-          _InfoCard(Icons.people, 'Alumnos', 'Lista de alumnos inscritos'),
-          _InfoCard(Icons.picture_as_pdf, 'Reportes', 'Genera boletas y constancias'),
-        ];
-      case 'control_escolar':
-        return [
-          _InfoCard(Icons.people, 'Alumnos', 'Gestión de alumnos'),
-          _InfoCard(Icons.upload_file, 'Importar', 'Carga de datos CSV/Excel'),
-        ];
-      default:
-        return [];
+  List<Widget> _cardsForRole(BuildContext context, String role) {
+    final cards = <Widget>[];
+    
+    if (role == 'directivo' || role == 'control_escolar') {
+      cards.addAll([
+        _InfoCard(
+          Icons.people_outline,
+          'Usuarios',
+          'Gestión de personal y accesos',
+          onTap: () => context.push('/admin/users'),
+        ),
+        _InfoCard(
+          Icons.group_work_outlined,
+          'Grupos',
+          'Organización de grados y secciones',
+          onTap: () => context.push('/admin/grupos'),
+        ),
+        _InfoCard(
+          Icons.school_outlined,
+          'Maestros',
+          'Plantilla docente y especialidades',
+          onTap: () => context.push('/admin/maestros'),
+        ),
+        _InfoCard(
+          Icons.person_search_outlined,
+          'Alumnos',
+          'Gestión de expedientes y padres',
+          onTap: () => context.push('/admin/alumnos'),
+        ),
+        _InfoCard(
+          Icons.settings_applications_outlined,
+          'Configuración',
+          'Ajustes del ciclo escolar y escuela',
+          onTap: () => context.push('/admin/config'),
+        ),
+      ]);
     }
+
+    if (role == 'docente') {
+      cards.addAll([
+        _InfoCard(Icons.checklist, 'Asistencia', 'Toma lista de tus grupos',
+            onTap: () => context.push('/attendance')),
+        _InfoCard(Icons.grade, 'Calificaciones', 'Captura evaluaciones',
+            onTap: () => context.push('/grades')),
+        _InfoCard(Icons.schedule, 'Mi Horario', 'Consulta tus clases',
+            onTap: () => context.push('/mi-horario')),
+      ]);
+    }
+
+    if (role == 'padre' || role == 'alumno') {
+      cards.addAll([
+        _InfoCard(Icons.checklist, 'Asistencia', 'Consulta el registro',
+            onTap: () => context.push('/attendance')),
+        _InfoCard(Icons.grade, 'Calificaciones', 'Consulta tus materias',
+            onTap: () => context.push('/grades')),
+        _InfoCard(Icons.calendar_month, 'Mi Horario', 'Horario de clases',
+            onTap: () => context.push('/mi-horario')),
+      ]);
+    }
+
+    return cards;
   }
 }
 
@@ -128,16 +163,23 @@ class _InfoCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
-  const _InfoCard(this.icon, this.title, this.subtitle);
+  final VoidCallback? onTap;
+  const _InfoCard(this.icon, this.title, this.subtitle, {this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
+      clipBehavior: Clip.antiAlias,
       child: ListTile(
-        leading: Icon(icon, color: const Color(0xFF1976D2)),
+        onTap: onTap,
+        leading: CircleAvatar(
+          backgroundColor: const Color(0xFF1976D2).withOpacity(0.1),
+          child: Icon(icon, color: const Color(0xFF1976D2)),
+        ),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(subtitle),
+        trailing: const Icon(Icons.chevron_right, size: 20, color: Colors.grey),
       ),
     );
   }

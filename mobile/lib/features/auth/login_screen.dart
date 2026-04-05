@@ -5,6 +5,7 @@ import 'package:local_auth/local_auth.dart';
 
 import '../../core/auth/auth_notifier.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/storage/secure_storage.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -22,15 +23,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _obscurePassword = true;
   String? _error;
 
-  static const _kBiometricEmail = 'biometric_email';
   static const _kBiometricEnabled = 'biometric_enabled';
 
   Box<String> get _settings => Hive.box<String>('settings');
 
   bool get _biometricEnabled =>
       _settings.get(_kBiometricEnabled) == 'true';
-
-  String? get _savedEmail => _settings.get(_kBiometricEmail);
 
   @override
   void initState() {
@@ -47,16 +45,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _tryBiometric() async {
     if (!_biometricEnabled) return;
-    final email = _savedEmail;
-    if (email == null) return;
 
     try {
+      final storage = ref.read(secureStorageProvider);
+      final creds = await storage.getCredentials();
+      if (creds == null) return;
+
       final canCheck = await _localAuth.canCheckBiometrics;
       final isDeviceSupported = await _localAuth.isDeviceSupported();
       if (!canCheck || !isDeviceSupported) return;
 
       final authenticated = await _localAuth.authenticate(
-        localizedReason: 'Usa tu huella para entrar a SIGE-MX',
+        localizedReason: 'Inicia sesión con tu huella',
         options: const AuthenticationOptions(
           biometricOnly: true,
           stickyAuth: true,
@@ -68,18 +68,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           _loading = true;
           _error = null;
         });
-        // With biometric we still need credentials — attempt refresh via stored token
-        // Just show the email pre-filled and let user enter password
-        // OR we use the stored token flow (auth notifier already handles this)
-        // For simplicity: pre-fill email and show password field
-        _emailCtrl.text = email;
-        setState(() => _loading = false);
-        // If the session is already active (token refresh worked in auth notifier),
-        // the router redirects automatically. We just pre-fill here as fallback.
+        try {
+          await ref.read(authNotifierProvider.notifier).login(
+                creds['email']!,
+                creds['password']!,
+              );
+        } catch (e) {
+          setState(() => _error = 'Fallo en autenticación biométrica: $e');
+        } finally {
+          if (mounted) setState(() => _loading = false);
+        }
       }
-    } catch (_) {
-      // Biometric not available or failed — fall back to password login
-    }
+    } catch (_) {}
   }
 
   Future<void> _submit() async {
@@ -89,12 +89,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _error = null;
     });
     try {
-      await ref.read(authNotifierProvider.notifier).login(
-            _emailCtrl.text.trim(),
-            _passCtrl.text,
-          );
-      // On success: check if biometric is available and offer to enable it
-      if (mounted) _offerBiometric(_emailCtrl.text.trim());
+      final email = _emailCtrl.text.trim();
+      final password = _passCtrl.text;
+      await ref.read(authNotifierProvider.notifier).login(email, password);
+      if (mounted) _offerBiometric(email, password);
     } catch (_) {
       if (mounted) setState(() => _error = 'Correo o contraseña incorrectos');
     } finally {
@@ -102,8 +100,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
-  Future<void> _offerBiometric(String email) async {
-    if (_biometricEnabled) return; // already enabled
+  Future<void> _offerBiometric(String email, String password) async {
+    if (_biometricEnabled) return;
     try {
       final canCheck = await _localAuth.canCheckBiometrics;
       final isSupported = await _localAuth.isDeviceSupported();
@@ -114,7 +112,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         builder: (_) => AlertDialog(
           title: const Text('Acceso con huella'),
           content: const Text(
-              '¿Quieres activar el inicio de sesión con huella dactilar para la próxima vez?'),
+              '¿Quieres activar el inicio de sesión con huella dactilar?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -129,7 +127,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       );
 
       if (enable == true) {
-        await _settings.put(_kBiometricEmail, email);
+        final storage = ref.read(secureStorageProvider);
+        await storage.saveCredentials(email, password);
         await _settings.put(_kBiometricEnabled, 'true');
       }
     } catch (_) {}

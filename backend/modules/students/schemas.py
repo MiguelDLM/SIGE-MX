@@ -34,6 +34,7 @@ class StudentUpdate(BaseModel):
     municipio: Optional[str] = None
     estado: Optional[str] = None
     codigo_postal: Optional[str] = None
+    activo: Optional[bool] = None
 
 
 class StudentResponse(BaseModel):
@@ -49,6 +50,7 @@ class StudentResponse(BaseModel):
     estado: Optional[str] = None
     created_at: datetime
     user_id: Optional[uuid.UUID] = None
+    activo: bool = True
 
     model_config = {"from_attributes": True}
 

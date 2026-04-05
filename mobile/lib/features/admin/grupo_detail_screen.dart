@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api/api_client.dart';
 import 'grupos_screen.dart';
 
-// ---------- Student in group model ----------
+// ---------- Models ----------
 class AlumnoEnGrupo {
   final String id;
   final String nombre;
@@ -26,10 +26,46 @@ class AlumnoEnGrupo {
       );
 
   String get displayName =>
-      [nombre, apellidoPaterno].where((s) => s != null && s.isNotEmpty).join(' ');
+      [nombre, apellidoPaterno].where((s) => s != null && s!.isNotEmpty).join(' ');
 }
 
-// ---------- Provider ----------
+class HorarioEntry {
+  final String id;
+  final String subjectId;
+  final String teacherId;
+  final String? subjectNombre;
+  final String? teacherNombre;
+  final int diaSemana;
+  final String horaInicio;
+  final String horaFin;
+  final String? aula;
+
+  const HorarioEntry({
+    required this.id,
+    required this.subjectId,
+    required this.teacherId,
+    this.subjectNombre,
+    this.teacherNombre,
+    required this.diaSemana,
+    required this.horaInicio,
+    required this.horaFin,
+    this.aula,
+  });
+
+  factory HorarioEntry.fromJson(Map<String, dynamic> j) => HorarioEntry(
+        id: j['id'] as String,
+        subjectId: j['subject_id'] as String,
+        teacherId: j['teacher_id'] as String,
+        subjectNombre: j['subject_nombre'] as String?,
+        teacherNombre: j['teacher_nombre'] as String?,
+        diaSemana: j['dia_semana'] as int,
+        horaInicio: j['hora_inicio'] as String,
+        horaFin: j['hora_fin'] as String,
+        aula: j['aula'] as String?,
+      );
+}
+
+// ---------- Providers ----------
 final alumnosEnGrupoProvider =
     FutureProvider.family<List<AlumnoEnGrupo>, String>((ref, groupId) async {
   final dio = ref.read(apiClientProvider);
@@ -39,36 +75,80 @@ final alumnosEnGrupoProvider =
       .toList();
 });
 
+final horarioGrupoProvider =
+    FutureProvider.family<List<HorarioEntry>, String>((ref, groupId) async {
+  final dio = ref.read(apiClientProvider);
+  final resp = await dio.get('/api/v1/horarios/grupo/$groupId');
+  return (resp.data['data'] as List)
+      .map((j) => HorarioEntry.fromJson(j as Map<String, dynamic>))
+      .toList();
+});
+
 // ---------- Screen ----------
-class GrupoDetailScreen extends ConsumerWidget {
+class GrupoDetailScreen extends ConsumerStatefulWidget {
   final Grupo grupo;
   const GrupoDetailScreen({super.key, required this.grupo});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(alumnosEnGrupoProvider(grupo.id));
+  ConsumerState<GrupoDetailScreen> createState() => _GrupoDetailScreenState();
+}
+
+class _GrupoDetailScreenState extends ConsumerState<GrupoDetailScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabCtrl = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Alumnos — ${grupo.nombre}')),
+      appBar: AppBar(
+        title: Text(widget.grupo.nombre),
+        bottom: TabBar(
+          controller: _tabCtrl,
+          tabs: const [
+            Tab(text: 'Alumnos', icon: Icon(Icons.people_outline)),
+            Tab(text: 'Horario', icon: Icon(Icons.schedule_outlined)),
+          ],
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabCtrl,
+        children: [
+          _AlumnosTab(groupId: widget.grupo.id),
+          _HorarioTab(groupId: widget.grupo.id),
+        ],
+      ),
+    );
+  }
+}
+
+class _AlumnosTab extends ConsumerWidget {
+  final String groupId;
+  const _AlumnosTab({required this.groupId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(alumnosEnGrupoProvider(groupId));
+    return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
-        icon: const Icon(Icons.person_add_outlined),
-        label: const Text('Agregar alumno'),
         onPressed: () => _showAddStudent(context, ref),
+        label: const Text('Añadir alumno'),
+        icon: const Icon(Icons.person_add_outlined),
       ),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Error: $e'),
-              TextButton(
-                onPressed: () =>
-                    ref.invalidate(alumnosEnGrupoProvider(grupo.id)),
-                child: const Text('Reintentar'),
-              ),
-            ],
-          ),
-        ),
+        error: (e, _) => Center(child: Text('Error: $e')),
         data: (alumnos) {
           if (alumnos.isEmpty) {
             return const Center(child: Text('Sin alumnos en este grupo'));
@@ -79,16 +159,11 @@ class GrupoDetailScreen extends ConsumerWidget {
             itemBuilder: (_, i) {
               final a = alumnos[i];
               return ListTile(
-                leading: CircleAvatar(
-                  child: Text(a.nombre.isNotEmpty ? a.nombre[0] : '?'),
-                ),
+                leading: CircleAvatar(child: Text(a.nombre[0])),
                 title: Text(a.displayName),
-                subtitle:
-                    a.matricula != null ? Text('Mat: ${a.matricula}') : null,
+                subtitle: Text(a.matricula ?? ''),
                 trailing: IconButton(
-                  icon: const Icon(Icons.remove_circle_outline,
-                      color: Colors.red),
-                  tooltip: 'Quitar del grupo',
+                  icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
                   onPressed: () => _removeStudent(context, ref, a),
                 ),
               );
@@ -100,6 +175,7 @@ class GrupoDetailScreen extends ConsumerWidget {
   }
 
   Future<void> _showAddStudent(BuildContext context, WidgetRef ref) async {
+    // Reusing logic from the user's previously working code
     final searchCtrl = TextEditingController();
     final results = ValueNotifier<List<Map<String, dynamic>>>([]);
     String? selectedStudentId;
@@ -114,7 +190,6 @@ class GrupoDetailScreen extends ConsumerWidget {
       } catch (_) {}
     }
 
-    // Load initial list
     await doSearch();
 
     await showDialog(
@@ -133,41 +208,16 @@ class GrupoDetailScreen extends ConsumerWidget {
                     icon: const Icon(Icons.search),
                     onPressed: () async {
                       await doSearch();
-                      setState(() {}); // refresh to show results
+                      setState(() {});
                     },
                   ),
                 ),
-                onSubmitted: (_) async {
-                  await doSearch();
-                  setState(() {});
-                },
               ),
               const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: () async {
-                  final created = await showDialog<bool>(
-                    context: ctx,
-                    builder: (dCtx) => _AlumnoDialog(ref: ref),
-                  );
-                  if (created == true) {
-                    await doSearch();
-                    setState(() {});
-                  }
-                },
-                icon: const Icon(Icons.person_add_alt_1_outlined),
-                label: const Text('Crear nuevo alumno'),
-              ),
-              const Divider(),
               ValueListenableBuilder<List<Map<String, dynamic>>>(
                 valueListenable: results,
                 builder: (_, list, __) {
-                  if (list.isEmpty) {
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 20),
-                      child: Text('Sin resultados',
-                          style: TextStyle(color: Colors.grey)),
-                    );
-                  }
+                  if (list.isEmpty) return const Text('Sin resultados');
                   return SizedBox(
                     height: 250,
                     width: double.maxFinite,
@@ -175,17 +225,12 @@ class GrupoDetailScreen extends ConsumerWidget {
                       itemCount: list.length,
                       itemBuilder: (_, i) {
                         final s = list[i];
-                        final sId = s['id'] as String;
-                        final name =
-                            '${s['nombre'] ?? ''} ${s['apellido_paterno'] ?? ''}'
-                                .trim();
                         return RadioListTile<String>(
-                          title: Text(name),
-                          subtitle: Text(s['matricula'] as String? ?? ''),
-                          value: sId,
+                          title: Text('${s['nombre']} ${s['apellido_paterno'] ?? ''}'),
+                          subtitle: Text(s['matricula'] ?? ''),
+                          value: s['id'] as String,
                           groupValue: selectedStudentId,
-                          onChanged: (v) =>
-                              setState(() => selectedStudentId = v),
+                          onChanged: (v) => setState(() => selectedStudentId = v),
                         );
                       },
                     ),
@@ -195,27 +240,20 @@ class GrupoDetailScreen extends ConsumerWidget {
             ],
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
             FilledButton(
               onPressed: selectedStudentId == null
                   ? null
                   : () async {
                       try {
                         await ref.read(apiClientProvider).post(
-                          '/api/v1/groups/${grupo.id}/students',
+                          '/api/v1/groups/$groupId/students',
                           data: {'student_id': selectedStudentId},
                         );
                         Navigator.pop(ctx);
-                        ref.invalidate(alumnosEnGrupoProvider(grupo.id));
+                        ref.invalidate(alumnosEnGrupoProvider(groupId));
                       } catch (e) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Error: $e')),
-                          );
-                        }
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
                       }
                     },
               child: const Text('Agregar'),
@@ -226,21 +264,17 @@ class GrupoDetailScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _removeStudent(
-      BuildContext context, WidgetRef ref, AlumnoEnGrupo a) async {
+  Future<void> _removeStudent(BuildContext context, WidgetRef ref, AlumnoEnGrupo a) async {
     final ok = await showDialog<bool>(
       context: context,
-      builder: (dialogCtx) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         title: const Text('¿Quitar alumno?'),
-        content: Text('Se quitará a "${a.displayName}" del grupo.'),
+        content: Text('Se quitará a ${a.displayName} del grupo.'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx, false),
-            child: const Text('Cancelar'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
           FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(dialogCtx, true),
             child: const Text('Quitar'),
           ),
         ],
@@ -248,21 +282,205 @@ class GrupoDetailScreen extends ConsumerWidget {
     );
     if (ok == true) {
       try {
-        await ref
-            .read(apiClientProvider)
-            .delete('/api/v1/groups/${grupo.id}/students/${a.id}');
-        ref.invalidate(alumnosEnGrupoProvider(grupo.id));
+        await ref.read(apiClientProvider).delete('/api/v1/groups/$groupId/students/${a.id}');
+        ref.invalidate(alumnosEnGrupoProvider(groupId));
       } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text('Error: $e')));
-        }
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
 }
 
-// Reusing AlumnoDialog from AlumnosAdminScreen
+class _HorarioTab extends ConsumerWidget {
+  final String groupId;
+  const _HorarioTab({required this.groupId});
+
+  static const _dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(horarioGrupoProvider(groupId));
+    return Scaffold(
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showAddHorario(context, ref),
+        label: const Text('Añadir clase'),
+        icon: const Icon(Icons.add_alarm_outlined),
+      ),
+      body: async.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('Error: $e')),
+        data: (entries) {
+          if (entries.isEmpty) {
+            return const Center(child: Text('Sin clases programadas'));
+          }
+          final byDay = <int, List<HorarioEntry>>{};
+          for (final e in entries) {
+            byDay.putIfAbsent(e.diaSemana, () => []).add(e);
+          }
+          final sortedDays = byDay.keys.toList()..sort();
+
+          return ListView.builder(
+            itemCount: sortedDays.length,
+            itemBuilder: (ctx, idx) {
+              final day = sortedDays[idx];
+              final dayEntries = byDay[day]!..sort((a, b) => xCompare(a.horaInicio, b.horaInicio));
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                    child: Text(_dias[day], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blue)),
+                  ),
+                  ...dayEntries.map((e) => ListTile(
+                    title: Text(e.subjectNombre ?? 'Materia'),
+                    subtitle: Text('${e.teacherNombre ?? 'Maestro'} • ${e.horaInicio.substring(0, 5)} - ${e.horaFin.substring(0, 5)}'),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                      onPressed: () => _deleteEntry(context, ref, e),
+                    ),
+                  )),
+                ],
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  int xCompare(String a, String b) => a.compareTo(b);
+
+  Future<void> _deleteEntry(BuildContext context, WidgetRef ref, HorarioEntry e) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Eliminar clase?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Eliminar')),
+        ],
+      ),
+    );
+    if (ok == true) {
+      try {
+        await ref.read(apiClientProvider).delete('/api/v1/horarios/${e.id}');
+        ref.invalidate(horarioGrupoProvider(groupId));
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+  }
+
+  Future<void> _showAddHorario(BuildContext context, WidgetRef ref) async {
+    String? selSubjId;
+    String? selTeacherId;
+    int selDay = 0;
+    TimeOfDay start = const TimeOfDay(hour: 7, minute: 0);
+    TimeOfDay end = const TimeOfDay(hour: 8, minute: 0);
+    List<Map<String, dynamic>> subjs = [];
+    List<Map<String, dynamic>> teachers = [];
+    bool loading = true;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) {
+          if (loading) {
+            Future.microtask(() async {
+              final dio = ref.read(apiClientProvider);
+              final rS = await dio.get('/api/v1/subjects/');
+              final rT = await dio.get('/api/v1/teachers/');
+              if (ctx.mounted) {
+                setState(() {
+                  subjs = (rS.data['data'] as List).cast<Map<String, dynamic>>();
+                  teachers = (rT.data['data'] as List).cast<Map<String, dynamic>>();
+                  loading = false;
+                });
+              }
+            });
+            return const AlertDialog(content: SizedBox(height: 100, child: Center(child: CircularProgressIndicator())));
+          }
+
+          return AlertDialog(
+            title: const Text('Programar clase'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<String>(
+                    decoration: const InputDecoration(labelText: 'Materia'),
+                    items: subjs.map((s) => DropdownMenuItem(value: s['id'] as String, child: Text(s['nombre']))).toList(),
+                    onChanged: (v) => selSubjId = v,
+                  ),
+                  DropdownButtonFormField<String>(
+                    decoration: const InputDecoration(labelText: 'Maestro'),
+                    items: teachers.map((t) => DropdownMenuItem(value: t['id'] as String, child: Text(t['nombre']))).toList(),
+                    onChanged: (v) => selTeacherId = v,
+                  ),
+                  DropdownButtonFormField<int>(
+                    value: selDay,
+                    decoration: const InputDecoration(labelText: 'Día'),
+                    items: List.generate(6, (i) => DropdownMenuItem(value: i, child: Text(_dias[i]))),
+                    onChanged: (v) => selDay = v!,
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () async {
+                            final t = await showTimePicker(context: ctx, initialTime: start);
+                            if (t != null) setState(() => start = t);
+                          },
+                          child: Text('Inicio: ${start.format(ctx)}'),
+                        ),
+                      ),
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () async {
+                            final t = await showTimePicker(context: ctx, initialTime: end);
+                            if (t != null) setState(() => end = t);
+                          },
+                          child: Text('Fin: ${end.format(ctx)}'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+              FilledButton(
+                onPressed: (selSubjId == null || selTeacherId == null) ? null : () async {
+                  try {
+                    final hStart = '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}';
+                    final hEnd = '${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}';
+                    await ref.read(apiClientProvider).post('/api/v1/horarios/', data: {
+                      'group_id': groupId,
+                      'subject_id': selSubjId,
+                      'teacher_id': selTeacherId,
+                      'dia_semana': selDay,
+                      'hora_inicio': hStart,
+                      'hora_fin': hEnd,
+                    });
+                    Navigator.pop(ctx);
+                    ref.invalidate(horarioGrupoProvider(groupId));
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                  }
+                },
+                child: const Text('Guardar'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ---------- Reusing AlumnoDialog from AlumnosAdminScreen ----------
 class _AlumnoDialog extends StatefulWidget {
   final Map<String, dynamic>? existing;
   final WidgetRef ref;
@@ -289,13 +507,10 @@ class _AlumnoDialogState extends State<_AlumnoDialog> {
   void initState() {
     super.initState();
     final e = widget.existing;
-    _matriculaCtrl =
-        TextEditingController(text: e?['matricula'] as String? ?? '');
+    _matriculaCtrl = TextEditingController(text: e?['matricula'] as String? ?? '');
     _nombreCtrl = TextEditingController(text: e?['nombre'] as String? ?? '');
-    _apPaternoCtrl =
-        TextEditingController(text: e?['apellido_paterno'] as String? ?? '');
-    _apMaternoCtrl =
-        TextEditingController(text: e?['apellido_materno'] as String? ?? '');
+    _apPaternoCtrl = TextEditingController(text: e?['apellido_paterno'] as String? ?? '');
+    _apMaternoCtrl = TextEditingController(text: e?['apellido_materno'] as String? ?? '');
     _emailCtrl = TextEditingController(text: e?['email'] as String? ?? '');
     _curpCtrl = TextEditingController(text: e?['curp'] as String? ?? '');
     if (e?['fecha_nacimiento'] != null) {
@@ -316,15 +531,11 @@ class _AlumnoDialogState extends State<_AlumnoDialog> {
 
   Future<void> _save() async {
     final nombre = _nombreCtrl.text.trim();
-    final matricula = _matriculaCtrl.text.trim();
-    if (nombre.isEmpty || (!_isEdit && matricula.isEmpty)) {
-      setState(() => _error = 'Nombre y matrícula son requeridos');
+    if (nombre.isEmpty) {
+      setState(() => _error = 'Nombre es requerido');
       return;
     }
-    setState(() {
-      _saving = true;
-      _error = null;
-    });
+    setState(() { _saving = true; _error = null; });
     try {
       final dio = widget.ref.read(apiClientProvider);
       final body = <String, dynamic>{
@@ -335,12 +546,10 @@ class _AlumnoDialogState extends State<_AlumnoDialog> {
         'curp': _curpCtrl.text.trim().isEmpty ? null : _curpCtrl.text.trim().toUpperCase(),
         'fecha_nacimiento': _fechaNacimiento?.toIso8601String().split('T')[0],
       };
-
       if (_isEdit) {
-        await dio.patch('/api/v1/students/${widget.existing!['id']}',
-            data: body);
+        await dio.patch('/api/v1/students/${widget.existing!['id']}', data: body);
       } else {
-        body['matricula'] = matricula;
+        body['matricula'] = _matriculaCtrl.text.trim();
         await dio.post('/api/v1/students/', data: body);
       }
       if (mounted) Navigator.pop(context, true);
@@ -359,121 +568,27 @@ class _AlumnoDialogState extends State<_AlumnoDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (!_isEdit)
-              TextField(
-                controller: _matriculaCtrl,
-                textCapitalization: TextCapitalization.characters,
-                decoration: InputDecoration(
-                  labelText: 'Matrícula *',
-                  border: const OutlineInputBorder(),
-                  errorText: _error,
-                ),
-                onChanged: (_) {
-                  if (_error != null) setState(() => _error = null);
-                },
-              ),
-            if (!_isEdit) const SizedBox(height: 12),
-            TextField(
-              controller: _nombreCtrl,
-              textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(
-                labelText: 'Nombre(s) *',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _apPaternoCtrl,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(
-                      labelText: 'Ap. Paterno',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    controller: _apMaternoCtrl,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(
-                      labelText: 'Ap. Materno',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _curpCtrl,
-              textCapitalization: TextCapitalization.characters,
-              decoration: const InputDecoration(
-                labelText: 'CURP',
-                border: OutlineInputBorder(),
-                hintText: 'ABCD123456...',
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _emailCtrl,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                labelText: 'Correo electrónico',
-                border: OutlineInputBorder(),
-                hintText: 'usuario@ejemplo.com',
-                helperText: 'Se usará para el acceso al sistema',
-              ),
-            ),
-            const SizedBox(height: 12),
-            InkWell(
+            if (!_isEdit) TextField(controller: _matriculaCtrl, decoration: const InputDecoration(labelText: 'Matrícula')),
+            TextField(controller: _nombreCtrl, decoration: const InputDecoration(labelText: 'Nombre')),
+            TextField(controller: _apPaternoCtrl, decoration: const InputDecoration(labelText: 'Ap. Paterno')),
+            TextField(controller: _apMaternoCtrl, decoration: const InputDecoration(labelText: 'Ap. Materno')),
+            TextField(controller: _curpCtrl, decoration: const InputDecoration(labelText: 'CURP')),
+            TextField(controller: _emailCtrl, decoration: const InputDecoration(labelText: 'Email')),
+            ListTile(
+              title: Text(_fechaNacimiento == null ? 'Fecha Nac.' : '${_fechaNacimiento!.toLocal()}'.split(' ')[0]),
+              trailing: const Icon(Icons.calendar_today),
               onTap: () async {
-                final picked = await showDatePicker(
-                  context: context,
-                  initialDate: _fechaNacimiento ?? DateTime(2005),
-                  firstDate: DateTime(1950),
-                  lastDate: DateTime.now(),
-                );
-                if (picked != null) setState(() => _fechaNacimiento = picked);
+                final d = await showDatePicker(context: context, initialDate: DateTime(2000), firstDate: DateTime(1950), lastDate: DateTime.now());
+                if (d != null) setState(() => _fechaNacimiento = d);
               },
-              child: InputDecorator(
-                decoration: const InputDecoration(
-                  labelText: 'Fecha de nacimiento',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.calendar_today),
-                ),
-                child: Text(_fechaNacimiento == null
-                    ? 'Seleccionar fecha'
-                    : '${_fechaNacimiento!.day}/${_fechaNacimiento!.month}/${_fechaNacimiento!.year}'),
-              ),
             ),
-            if (_error != null && _isEdit) ...[
-              const SizedBox(height: 8),
-              Text(_error!,
-                  style: const TextStyle(color: Colors.red, fontSize: 12)),
-            ],
+            if (_error != null) Text(_error!, style: const TextStyle(color: Colors.red)),
           ],
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: _saving ? null : () => Navigator.pop(context, false),
-          child: const Text('Cancelar'),
-        ),
-        FilledButton(
-          onPressed: _saving ? null : _save,
-          child: _saving
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                      strokeWidth: 2, color: Colors.white),
-                )
-              : const Text('Guardar'),
-        ),
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+        FilledButton(onPressed: _saving ? null : _save, child: const Text('Guardar')),
       ],
     );
   }

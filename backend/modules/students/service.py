@@ -149,9 +149,16 @@ async def get_student_by_id(student_id: uuid.UUID, db: AsyncSession) -> Student:
 
 
 async def list_students(
-    db: AsyncSession, page: int = 1, size: int = 20, search: str | None = None
+    db: AsyncSession,
+    page: int = 1,
+    size: int = 20,
+    search: str | None = None,
+    include_inactive: bool = False,
 ) -> tuple[list[Student], int]:
     q = select(Student)
+    if not include_inactive:
+        q = q.where(Student.activo == True)  # noqa: E712
+
     if search:
         term = f"%{search.lower()}%"
         q = q.where(
@@ -169,6 +176,14 @@ async def list_students(
         .limit(size)
     )
     return list(result.scalars()), total
+
+
+async def deactivate_student(student_id: uuid.UUID, db: AsyncSession) -> Student:
+    student = await get_student_by_id(student_id, db)
+    student.activo = False
+    await db.commit()
+    await db.refresh(student)
+    return student
 
 
 async def list_my_students(

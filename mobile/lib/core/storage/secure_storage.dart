@@ -5,7 +5,7 @@ final secureStorageProvider = Provider<SecureStorage>((_) => SecureStorage());
 
 class SecureStorage {
   final _storage = const FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    aOptions: AndroidOptions(encryptedSharedPreferences: false),
   );
 
   Future<void> saveTokens({
@@ -26,5 +26,24 @@ class SecureStorage {
       _storage.delete(key: 'access_token'),
       _storage.delete(key: 'refresh_token'),
     ]);
+  }
+
+  Future<void> saveCredentials(String email, String password) async {
+    await _storage.write(key: 'saved_email', value: email);
+    await _storage.write(key: 'saved_password', value: password);
+  }
+
+  Future<Map<String, String>?> getCredentials() async {
+    final email = await _storage.read(key: 'saved_email');
+    final password = await _storage.read(key: 'saved_password');
+    if (email != null && password != null) {
+      return {'email': email, 'password': password};
+    }
+    return null;
+  }
+
+  Future<void> clearCredentials() async {
+    await _storage.delete(key: 'saved_email');
+    await _storage.delete(key: 'saved_password');
   }
 }

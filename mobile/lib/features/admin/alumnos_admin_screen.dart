@@ -122,6 +122,11 @@ class _AlumnosAdminScreenState extends ConsumerState<AlumnosAdminScreen> {
                       icon: const Icon(Icons.edit_outlined),
                       onPressed: () => _showForm(context, a),
                     ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                      tooltip: 'Desactivar',
+                      onPressed: () => _confirmDelete(context, a),
+                    ),
                   ],
                 ),
               );
@@ -130,6 +135,40 @@ class _AlumnosAdminScreenState extends ConsumerState<AlumnosAdminScreen> {
         },
       ),
     );
+  }
+
+  Future<void> _confirmDelete(
+      BuildContext context, Map<String, dynamic> student) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Desactivar alumno?'),
+        content: Text('Se desactivará el expediente de "${student['nombre']}".'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Desactivar'),
+          ),
+        ],
+      ),
+    );
+
+    if (ok == true) {
+      try {
+        final dio = ref.read(apiClientProvider);
+        await dio.delete('/api/v1/students/${student['id']}');
+        ref.invalidate(alumnosAdminProvider(_search));
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text('Error: $e')));
+        }
+      }
+    }
   }
 
   Future<void> _showParentsDialog(
