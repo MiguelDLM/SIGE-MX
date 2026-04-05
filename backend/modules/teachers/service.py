@@ -51,7 +51,7 @@ async def create_teacher(data: TeacherCreate, db: AsyncSession) -> Teacher:
             db.add(UserRole(user_id=user.id, role_id=role.id))
             user_id = user.id
 
-    teacher_data = data.model_dump(exclude={"email", "curp", "fecha_nacimiento"})
+    teacher_data = data.model_dump()
     teacher_data["user_id"] = user_id
     
     teacher = Teacher(**teacher_data)

@@ -1,8 +1,8 @@
 # backend/modules/students/models.py
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, func
+from sqlalchemy import Date, DateTime, ForeignKey, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -19,6 +19,9 @@ class Student(Base):
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
     )
     matricula: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    email: Mapped[str | None] = mapped_column(String, nullable=True)
+    curp: Mapped[str | None] = mapped_column(String, nullable=True)
+    fecha_nacimiento: Mapped[date | None] = mapped_column(Date, nullable=True)
     numero_seguro_social: Mapped[str | None] = mapped_column(String, nullable=True)
     tipo_sangre: Mapped[str | None] = mapped_column(String, nullable=True)
     direccion: Mapped[str | None] = mapped_column(String, nullable=True)

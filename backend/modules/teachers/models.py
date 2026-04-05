@@ -22,6 +22,9 @@ class Teacher(Base):
         String, unique=True, nullable=True
     )
     especialidad: Mapped[str | None] = mapped_column(String, nullable=True)
+    email: Mapped[str | None] = mapped_column(String, nullable=True)
+    curp: Mapped[str | None] = mapped_column(String, nullable=True)
+    fecha_nacimiento: Mapped[date | None] = mapped_column(Date, nullable=True)
     fecha_contratacion: Mapped[date | None] = mapped_column(Date, nullable=True)
     nombre: Mapped[str | None] = mapped_column(String, nullable=True)
     apellido_paterno: Mapped[str | None] = mapped_column(String, nullable=True)
