@@ -77,7 +77,7 @@ class _ParentsAdminScreenState extends ConsumerState<ParentsAdminScreen> {
               final p = parents[i];
               final nombre = '${p['nombre'] ?? ''} ${p['apellido_paterno'] ?? ''}'.trim();
               return ListTile(
-                leading: const CircleAvatar(child: Icon(Icons.parent_verifications)),
+                leading: const CircleAvatar(child: Icon(Icons.person_outline)),
                 title: Text(nombre),
                 subtitle: Text(p['email'] ?? ''),
                 trailing: Row(
