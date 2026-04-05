@@ -54,8 +54,6 @@ final maestroHorarioProvider =
 class MaestrosAdminScreen extends ConsumerWidget {
   const MaestrosAdminScreen({super.key});
 
-  static const _dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(maestrosAdminProvider);
@@ -116,7 +114,14 @@ class MaestrosAdminScreen extends ConsumerWidget {
                     ),
                   ],
                 ),
-...
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
   Future<void> _showAssignmentForm(
       BuildContext context, WidgetRef ref, TeacherModel teacher) async {
     await showDialog(
@@ -124,6 +129,24 @@ class MaestrosAdminScreen extends ConsumerWidget {
       builder: (dialogCtx) => _AssignTeacherDialog(teacher: teacher, ref: ref),
     );
     ref.invalidate(maestroHorarioProvider(teacher.id));
+  }
+
+  Future<void> _showForm(
+      BuildContext context, WidgetRef ref, TeacherModel? existing) async {
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => _MaestroDialog(existing: existing, ref: ref),
+    );
+    if (saved == true) ref.invalidate(maestrosAdminProvider);
+  }
+
+  Future<void> _showHorario(
+      BuildContext context, WidgetRef ref, TeacherModel teacher) async {
+    await showDialog(
+      context: context,
+      builder: (dialogCtx) =>
+          _MaestroHorarioDialog(teacher: teacher, ref: ref),
+    );
   }
 }
 
@@ -257,33 +280,6 @@ class _AssignTeacherDialogState extends State<_AssignTeacherDialog> {
               : const Text('Asignar'),
         ),
       ],
-    );
-  }
-}
-
-              );
-            },
-          );
-        },
-      ),
-    );
-  }
-
-  Future<void> _showForm(
-      BuildContext context, WidgetRef ref, TeacherModel? existing) async {
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (dialogCtx) => _MaestroDialog(existing: existing, ref: ref),
-    );
-    if (saved == true) ref.invalidate(maestrosAdminProvider);
-  }
-
-  Future<void> _showHorario(
-      BuildContext context, WidgetRef ref, TeacherModel teacher) async {
-    await showDialog(
-      context: context,
-      builder: (dialogCtx) =>
-          _MaestroHorarioDialog(teacher: teacher, ref: ref),
     );
   }
 }
