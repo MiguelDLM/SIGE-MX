@@ -84,6 +84,15 @@ async def deactivate_student(
     return {"data": StudentResponse.model_validate(student)}
 
 
+@router.delete("/{student_id}/permanent", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_student_permanent(
+    student_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_roles(_admin)),
+):
+    await service.delete_student(student_id, db)
+
+
 @router.get("/{student_id}/parents")
 async def get_student_parents(
     student_id: uuid.UUID,

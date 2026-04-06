@@ -85,3 +85,22 @@ async def deactivate_user(
     _: dict = Depends(require_roles(_admin_roles)),
 ):
     await service.deactivate_user(user_id, db)
+
+
+@router.delete("/{user_id}/permanent", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_user_permanent(
+    user_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_roles(_admin_roles)),
+):
+    await service.delete_user(user_id, db)
+
+
+@router.post("/{user_id}/reset-password")
+async def reset_user_password(
+    user_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_roles(_admin_roles)),
+):
+    new_pwd = await service.reset_password(user_id, db)
+    return {"data": {"message": "Contraseña reiniciada", "default_password": new_pwd}}

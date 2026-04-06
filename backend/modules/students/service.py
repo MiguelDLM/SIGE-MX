@@ -187,6 +187,14 @@ async def deactivate_student(student_id: uuid.UUID, db: AsyncSession) -> Student
     return student
 
 
+async def delete_student(student_id: uuid.UUID, db: AsyncSession) -> None:
+    student = await get_student_by_id(student_id, db)
+    # This will hard delete the student record. 
+    # Foreign keys with cascade should handle related tables like StudentParent.
+    await db.delete(student)
+    await db.commit()
+
+
 async def list_my_students(
     user_id: uuid.UUID, db: AsyncSession
 ) -> list[Student]:

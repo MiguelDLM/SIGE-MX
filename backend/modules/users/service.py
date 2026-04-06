@@ -83,6 +83,34 @@ async def deactivate_user(user_id: uuid.UUID, db: AsyncSession) -> None:
     await db.commit()
 
 
+async def reset_password(user_id: uuid.UUID, db: AsyncSession) -> str:
+    user = await get_user_by_id(user_id, db)
+    
+    # Determinar nueva contraseña default
+    new_pwd = "SAS12345"
+    if user.curp:
+        new_pwd = user.curp.strip().upper()
+    else:
+        # Intentar buscar matricula si es alumno
+        from modules.students.models import Student
+        from modules.teachers.models import Teacher
+        
+        s_res = await db.execute(select(Student).where(Student.user_id == user.id))
+        student = s_res.scalar_one_or_none()
+        if student:
+            new_pwd = student.matricula.strip().upper()
+        else:
+            t_res = await db.execute(select(Teacher).where(Teacher.user_id == user.id))
+            teacher = t_res.scalar_one_or_none()
+            if teacher and teacher.numero_empleado:
+                new_pwd = teacher.numero_empleado.strip().upper()
+
+    user.password_hash = hash_password(new_pwd)
+    user.must_change_password = True
+    await db.commit()
+    return new_pwd
+
+
 async def list_users(
     db: AsyncSession,
     role: Optional[str] = None,
